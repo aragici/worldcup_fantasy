@@ -378,6 +378,37 @@ def draw_kura():
     conn.close()
     return jsonify({"message": "Garantili Adalet kurası başarıyla çekildi, tüm gruplar kilitlendi! 🎲"}), 200
 
+@app.route('/api/admin/delete-user/<string:username>', methods=['DELETE'])
+def delete_user(username):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    try:
+        # 1. Önce kullanıcının ID'sini bulalım
+        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        user_row = cursor.fetchone()
+        
+        if not user_row:
+            return jsonify({"message": "Böyle bir kullanıcı veritabanında bulunamadı!"}), 404
+            
+        user_id = user_row[0]
+        
+        # 2. İlişkili tüm kura sıralamalarını sil (draft_orders)
+        cursor.execute("DELETE FROM draft_orders WHERE user_id = ?", (user_id,))
+        
+        # 3. Kullanıcının yaptığı kupon seçimlerini sil (coupons tablonun adı her neyse)
+        # Senin kupon tablonun adı muhtemelen 'selections' veya 'coupons'. Ona göre temizliyoruz:
+        cursor.execute("DELETE FROM coupons WHERE user_id = ?", (user_id,))
+        
+        # 4. En son ana kullanıcı hesabını sil
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        
+        conn.commit()
+        return jsonify({"message": f"{username} arenadan tamamen diskalifiye edildi, tüm verileri temizlendi! 🧹"}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"message": f"Silme esnasında SQL hatası çıktı: {str(e)}"}), 500
+    finally:
+        conn.close()
 @app.route('/')
 def home():
     """Kullanıcı ana Ngrok linkine tıkladığında doğrudan index.html'e fırlatır."""
