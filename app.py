@@ -315,7 +315,11 @@ def home():
     """Kullanıcı ana Ngrok linkine tıkladığında doğrudan index.html'e fırlatır."""
     return app.send_static_file('index.html')
 if __name__ == '__main__':
-    # Bulut sunucular portu otomatik atar, bulamazsa 5000'den açar
+    # Tarayıcının CSS dosyalarını kesinlikle stil dosyası olarak okumasını zorunlu kılıyoruz:
+    import mimetypes
+    mimetypes.add_type('text/css', '.css')
+    mimetypes.add_type('application/javascript', '.js')
+    
     port = int(os.environ.get("PORT", 5000))
     init_db()
     app.run(debug=False, host='0.0.0.0', port=port)
