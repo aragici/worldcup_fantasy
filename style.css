@@ -39,16 +39,25 @@ header {
 
 .header-arena {
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center; /* 🚀 İşte dikeyde milimetrik ortalayan sihirli satır */
+    padding: 15px 0;
     gap: 20px;
+}
+.header-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px; /* Ay-Yıldız'a sabit alan */
 }
 
 /* Sol Taraf: Logo Alanı */
 .header-left {
-    flex: 1;
     display: flex;
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px; /* Kupaya sabit alan */
+
 }
 
 .custom-logo {
@@ -59,8 +68,9 @@ header {
 
 /* Orta Taraf: Sıralı ve Net Başlıklar */
 .header-center {
-    flex: 2;
     text-align: center;
+    flex-grow: 1;
+
 }
 
 .header-center h1 {
