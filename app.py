@@ -4,7 +4,8 @@ import sqlite3
 import os
 from datetime import datetime
 
-app = Flask(__name__, static_folder='../static', static_url_path='')# Tüm HTTP metodlarına ve CORS isteklerine geçit veren canavar kural
+# Render sunucusunun statik dosyaları (index.html vs.) tam görmesini sağlayan kurşun geçirmez satır
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), '..', 'static'), static_url_path='')
 CORS(app, resources={r"/api/*": {"origins": "*"}}, methods=["GET", "POST", "PUT", "DELETE"])
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
