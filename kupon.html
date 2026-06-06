@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kuponunu Kilitle - 2026 Dünya Kupası</title>
-```html
-  <link rel="stylesheet" href="style.css">    <style>
+    <link rel="stylesheet" href="style.css">    
+    <style>
         /* Canlı Takip Masası İçin Şık Tablo Tasarımı */
         .live-table {
             width: 100%;
@@ -39,6 +39,14 @@
             border: 1px solid #24242b;
             color: var(--text-white);
         }
+        /* Dynamic neon text for draft orders */
+        .neon-sira {
+            color: var(--neon-yellow);
+            font-size: 0.85rem;
+            margin-left: 10px;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 255, 0, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -55,8 +63,7 @@
     <header>
         <div class="container header-arena">
             <div class="header-left">
-                <img src="css/logo.png" alt="World Cup" class="custom-logo">
-            </div>
+                <img src="logo.png" alt="World Cup">            </div>
             <div class="header-center">
                 <h1>KUPON HAZIRLAMA ARENASI</h1>
                 <div class="slogan-container">
@@ -76,7 +83,7 @@
     <main class="container">
         <div class="welcome-box" style="border-style: solid; padding: 15px; margin-bottom: 20px;">
             <h2 style="font-size: 1.4rem;">Hoş geldin, <span id="player-name" style="color: var(--neon-purple);">Oyuncu</span>!</h2>
-            <p style="font-size: 0.95rem;">Aşağıdaki 10 gruptan da tam olarak 1'er takım seçerek kuponunu tamamla. Yanında <span style="color: #ff3333; font-weight: bold;">4 / 4 (DOLU)</span> yazan takımlar kilitlenmiştir.</p>
+            <p style="font-size: 0.95rem;">Aşağıdaki 10 gruptan da tam olarak 1'er takım seçerek kuponunu tamamla. Yanında <span style="color: #ff3333; font-weight: bold;">2 / 2 (DOLU)</span> yazan takımlar kilitlenmiştir.</p>
         </div>
 
         <form id="tournament-form" onsubmit="kuponuKilitle(event)">
@@ -111,7 +118,11 @@
     </footer>
 
     <script>
-        const BACKEND_URL = 'http://127.0.0.1:5000/api';
+        // Bulutta veya lokalde çalışmasına göre backend adresini esnek belirler
+        const BACKEND_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
+            ? 'http://127.0.0.1:5000/api' 
+            : `${window.location.origin}/api`;
+
         const userId = localStorage.getItem('user_id');
         const username = localStorage.getItem('username');
 
@@ -166,6 +177,31 @@
             }
         });
 
+        // 🎲 Kura sıralamalarını backend'den çekip ilgili grupların yanına basan fonksiyon
+        async function secimSiralariniGetir() {
+            if (!userId) return;
+            try {
+                const response = await fetch(`${BACKEND_URL}/user/my-orders/${userId}`);
+                if (!response.ok) return;
+
+                const orders = await response.json();
+                orders.forEach(item => {
+                    const siraElement = document.getElementById(`sira-grup-${item.group_id}`);
+                    if (siraElement) {
+                        if (item.pick_order === 1) {
+                            siraElement.innerText = `(Sıran: 1 - İLKSİN! 🔥)`;
+                        } else if (item.pick_order === 8) {
+                            siraElement.innerText = `(Sıran: 8 - SONDASIN! 💀)`;
+                        } else {
+                            siraElement.innerText = `(Sıran: ${item.pick_order})`;
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Kura sıralamaları yüklenirken hata:", error);
+            }
+        }
+
         // Sayfa açıldığında anlık kontenjanları çeken, grupları basan ve diğer kuponları listeleyen ana fonksiyon
         async function gruplariYukle() {
             try {
@@ -185,7 +221,10 @@
 
                 for (let gNum in turnuvaGruplari) {
                     const grup = turnuvaGruplari[gNum];
-                    let grupHTML = `<div class="group-box"><h3>${grup.isim}</h3>`;
+                    let grupHTML = `
+                        <div class="group-box">
+                            <h3>${grup.isim} <span id="sira-grup-${gNum}" class="neon-sira"></span></h3>
+                    `;
 
                     grup.takimlar.forEach((takim) => {
                         const currentCount = counts[takim] || 0;
@@ -227,7 +266,10 @@
                     });
                 }
 
-                // 3. CANLI YAMA: Diğer tüm oyuncuların kuponlarını çek ve alttaki tabloya bas
+                // 3. Kura sıralamalarını yükle
+                await secimSiralariniGetir();
+
+                // 4. Diğer tüm oyuncuların kuponlarını çek ve alttaki tabloya bas
                 await canliKuponlariYukle();
 
             } catch (error) {
@@ -260,7 +302,6 @@
                         cellsHTML += `<span class="coupon-cell-mini"><strong>G${gNum}:</strong> ${team}</span>`;
                     }
                     
-                    // Giriş yapan adam kendi ismini tabloda daha net görsün diye ufak renk ayarı
                     let nameColor = uName === username ? 'var(--neon-yellow)' : 'var(--neon-purple)';
 
                     tbodyLive.innerHTML += `

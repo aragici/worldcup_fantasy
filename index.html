@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2026 Dünya Kupası Fantezi Ligi</title>
-```html
-  <link rel="stylesheet" href="style.css"></head>
+    <link rel="stylesheet" href="style.css">
+</head>
 <body>
 
     <div id="custom-alert" class="custom-alert-overlay">
@@ -20,8 +20,7 @@
     <header>
         <div class="container header-arena">
             <div class="header-left">
-                <img src="css/logo.png" alt="World Cup" class="custom-logo">
-            </div>
+                <img src="logo.png" alt="World Cup">            </div>
             <div class="header-center">
                 <h1>WORLD CUP ARENA <span class="neon-year">2026</span></h1>
                 <div class="slogan-container">
@@ -41,7 +40,7 @@
     <main class="container">
         <section class="welcome-box">
             <h2>🔥 OYUNA VE HERKESE KOYMAYA HAZIR MISIN?!</h2>
-            <p>Burada şans değil, futbol aklı ve strateji konuşur. Arkadaşlarını ezip geçmek ve turnuvanın tek hakimi olmak istiyorsan doğru yerdesin. Kuralları oku, hesabını aç ve hemen yerini al!</p>
+            <p>Burada şans değil, futbol aklı ve strateji konuşur. Arkadaşlarını ezip geçmek ve turnuvanın tek hakimi olmak istiyorsan doğru yerdesin. Kuralları oku, hesabını aç và hemen yerini al!</p>
         </section>
 
         <section class="rules-card">
@@ -51,8 +50,7 @@
                 <li><strong>Kadro Yapısı:</strong> 10 farklı gruptan tam olarak 1'er takım seçilecektir. Toplam 10 takım mecburidir.</li>
                 <li><strong>Kontenjan Bariyeri:</strong> Her takımın maksimum 2 kişilik kontenjanı vardır. Bir grupta favori takım 2 kez seçildiyse sistemde otomatik olarak kilitlenir.</li>
                 <li><strong>Puanlama Sistemi:</strong> Galibiyet 3, Beraberlik 1, Mağlubiyet 0. Grup liderliklerine ve eleme turlarına ekstra bonuslar eklenecektir.</li>
-                <li><strong>Grup Puanlama Sistemi:</strong> Seçilen takımlar gruplarını 1. tamamlarsa 3, 2. tamamlarsa 2 3. tamamlayıp bir üst tura çıkarsa (turnuvaya veda etmezse) 1 puan alacaklar.</li>
-
+                <li><strong>Grup Puanlama Sistemi:</strong> Seçilen takımlar gruplarını 1. tamamlarsa 3, 2. tamamlarsa 2, 3. tamamlayıp bir üst tura çıkarsa (turnuvaya veda etmezse) 1 puan alacaklar.</li>
                 <li><strong class="danger-text">⚠️ ADİL OYUN VE ŞİKE TEHDİDİ:</strong> Ortaklaşa iş çeviren, ittifak kuran, kahpelik veya şike yaptığı tespit edilen oyuncular diskalifiye edilir. Yatırılan 500 TL iade edilmez.</li>
             </ul>
         </section>
@@ -91,7 +89,10 @@
     </footer>
 
     <script>
-        const BACKEND_URL = 'http://127.0.0.1:5000/api';
+        // 🚀 CANLI YAMA: Bulutta veya lokalde çalışmasına göre backend adresini otomatik dengeler
+        const BACKEND_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
+            ? 'http://127.0.0.1:5000/api' 
+            : `${window.location.origin}/api`;
 
         function arenaAlert(baslik, mesaj, ikon = '🔥') {
             document.getElementById('alert-title').innerText = baslik;
@@ -130,7 +131,7 @@
                     arenaAlert('BAŞVURU REDDEDİLDİ', result.message, '❌');
                 }
             } catch (error) {
-                arenaAlert('SİSTEM HATASI', 'Python (Flask) sunucusunu başlattığından emin ol.', '🔌');
+                arenaAlert('SİSTEM HATASI', 'Python (Flask) sunucusunu başlattığından emin ol reis.', '🔌');
             }
         }
 
@@ -164,7 +165,7 @@
                     arenaAlert('ERİŞİM ENGELLENDİ', result.message, '⚠️');
                 }
             } catch (error) {
-                arenaAlert('SİSTEM HATASI', 'Python (Flask) sunucusu kapalı olabilir.', '🔌');
+                arenaAlert('SİSTEM HATASI', 'Python (Flask) sunucusu kapalı veya tünel uyuyor olabilir.', '🔌');
             }
         }
     </script>

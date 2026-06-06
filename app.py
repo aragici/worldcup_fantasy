@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import random
 import sqlite3
 import os
 from datetime import datetime
@@ -39,6 +40,15 @@ def init_db():
             team_name TEXT,
             updated_at TEXT,
             FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS draft_orders (
+            user_id INTEGER,
+            group_id INTEGER, -- 1, 2, 3... (Toplam kaç grup varsa)
+            pick_order INTEGER, -- 1'den 8'e kadar seçim sırası
+            PRIMARY KEY (user_id, group_id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
     conn.commit()
@@ -309,6 +319,64 @@ def clear_coupon(username):
     except Exception as e:
         return jsonify({"status": "error", "message": f"Kupon silinemedi: {str(e)}"}), 500
 
+
+@app.route('/api/admin/draw-kura', methods=['POST'])
+def draw_kura():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    
+    # Sadece onaylı (aktif) olan 8 oyuncuyu çekiyoruz
+    cursor.execute("SELECT id FROM users WHERE is_active = 1")
+    players = [row[0] for row in cursor.fetchall()]
+    
+    if len(players) != 8:
+        return jsonify({"message": f"Kura için tam 8 onaylı oyuncu lazım! Şu anki onaylı: {len(players)}"}), 400
+        
+    # Eski kura kayıtları varsa temizle
+    cursor.execute("DELETE FROM draft_orders")
+    
+    # Toplam grup sayın kaçsa (Örn: 8 grup olsun)
+    TOTAL_GROUPS = 8 
+    
+    # Kimlerin hangi grupta ilk 2'den seçtiğini takip eden küme
+    past_top_pickers = set()
+    
+    for g_id in range(1, TOTAL_GROUPS + 1):
+        # Bu grup için sırayı belirleyeceğimiz liste
+        current_group_order = []
+        
+        # Henüz avantaja kavuşmamış oyuncular
+        pool = [p for p in players if p not in past_top_pickers]
+        # Daha önce ilk 2'den seçmiş olanlar (Cezalılar/Sona atılacaklar)
+        punished = [p for p in players if p in past_top_pickers]
+        
+        # 1. Havuzu (hiç seçmeyenleri) kendi içinde karıştır
+        random.shuffle(pool)
+        # 2. Havuzu (daha önce seçenleri) kendi içinde karıştır
+        random.shuffle(punished)
+        
+        # İkisini birleştir: Önce hiç seçmeyenler avantaja gelir, seçenler arkaya kayar
+        current_group_order = pool + punished
+        
+        # Veritabanına bu grubun sıralamasını kaydet
+        for index, p_id in enumerate(current_group_order):
+            pick_order = index + 1 # 1-indexed sıralama (1. sıra, 2. sıra...)
+            cursor.execute("""
+                INSERT INTO draft_orders (user_id, group_id, pick_order) 
+                VALUES (?, ?, ?)
+            """, (p_id, g_id, pick_order))
+            
+        # Bu grubun ilk 2 seçenini "daha önce seçenler" listesine ekle
+        past_top_pickers.add(current_group_order[0])
+        past_top_pickers.add(current_group_order[1])
+        
+        # Eğer herkes en az bir kez ilk 2'den seçtiyse havuzu sıfırla ki döngü adilce devam etsin
+        if len(past_top_pickers) >= 8:
+            past_top_pickers.clear()
+            
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Garantili Adalet kurası başarıyla çekildi, tüm gruplar kilitlendi! 🎲"}), 200
 
 @app.route('/')
 def home():
