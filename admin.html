@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Turnuva Yönetimi</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 40px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .admin-table th, .admin-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+        .admin-table th {
+            background-color: #1a0033;
+            color: var(--neon-yellow);
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .btn-approve {
+            background-color: #2ec4b6;
+            color: black;
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            border-radius: 4px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-approve:hover {
+            box-shadow: 0 0 10px #2ec4b6;
+        }
+        .btn-clear-coupon {
+            background-color: #ff9f1c;
+            color: black;
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            border-radius: 4px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-clear-coupon:hover {
+            box-shadow: 0 0 10px #ff9f1c;
+            background-color: #f18701;
+        }
+        .coupon-cell {
+            font-size: 0.85rem;
+            background-color: #181820;
+            padding: 4px 8px !important;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 2px;
+            border: 1px solid #24242b;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="custom-alert" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <div id="alert-icon" class="custom-alert-icon">💼</div>
+            <div id="alert-title" class="custom-alert-title">ADMİN SİSTEMİ</div>
+            <div id="alert-message" class="custom-alert-message">İşlem başarılı.</div>
+            <button class="custom-alert-btn" onclick="kapatAlert()">DEVAM ET</button>
+        </div>
+    </div>
+
+    <header>
+        <div class="container header-arena">
+            <div class="header-left"><span style="font-size: 2rem; color: var(--neon-yellow);">⚡ ADMİN</span></div>
+            <div class="header-center">
+                <h1>TURNUVA KONTROL MERKEZİ</h1>
+                <p class="sub-slogan">KASAYI VE OYUNCULARI YÖNET</p>
+            </div>
+            <div class="header-right">
+                <div class="dikey-ay-yildiz">
+                    <div class="crescent-down"></div>
+                    <div class="star-down">★</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        
+        <div class="welcome-box" style="border-color: var(--neon-purple); padding: 15px; margin-bottom: 15px;">
+            <h2 style="font-size: 1.4rem;">💰 Para Kayıt Havuzu (500 TL Bariyeri)</h2>
+        </div>
+
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Oyuncu Adı (Ad Soyad)</th>
+                    <th>Başvuru Tarihi</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="pending-users-list"></tbody>
+        </table>
+
+        <div class="welcome-box" style="border-color: var(--neon-yellow); padding: 15px; margin-bottom: 15px; margin-top: 40px;">
+            <h2 style="font-size: 1.4rem; color: var(--neon-yellow);">🔥 Oyuncu Kupon Takip Masası</h2>
+            <p>Kuponunu kilitleyen onaylı oyuncuların 10 gruptan seçtiği tüm takımlar anlık olarak aşağıya düşer.</p>
+        </div>
+
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 180px;">Oyuncu Adı</th>
+                    <th style="width: 100px;">Zaman Damgası</th>
+                    <th>Grup Seçimleri (1'den 10'a Sıralı)</th>
+                    <th style="width: 140px;">Yönetim</th>
+                </tr>
+            </thead>
+            <tbody id="all-coupons-list">
+                <tr><td colspan="4" style="text-align:center; color:var(--text-gray);">Kupon yükleniyor...</td></tr>
+            </tbody>
+        </table>
+
+    </main>
+
+    <script>
+        const BACKEND_URL = 'http://127.0.0.1:5000/api';
+
+        function arenaAlert(baslik, mesaj, ikon = '💼') {
+            document.getElementById('alert-title').innerText = baslik;
+            document.getElementById('alert-message').innerText = mesaj;
+            document.getElementById('alert-icon').innerText = ikon;
+            document.getElementById('custom-alert').classList.add('active');
+        }
+
+        function kapatAlert() {
+            document.getElementById('custom-alert').classList.remove('active');
+        }
+
+        async function verileriYukle() {
+            // 1. Onay Bekleyen Kullanıcıları Çek
+            try {
+                const response = await fetch(`${BACKEND_URL}/admin/pending-users`);
+                const result = await response.json();
+                const tbodyPending = document.getElementById('pending-users-list');
+                tbodyPending.innerHTML = '';
+
+                if (result.users.length === 0) {
+                    tbodyPending.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-gray);">Onay bekleyen yeni bir başvuru yok reis.</td></tr>`;
+                } else {
+                    result.users.forEach(user => {
+                        tbodyPending.innerHTML += `
+                            <tr>
+                                <td style="font-weight:bold; color:white;">⚽ ${user.username}</td>
+                                <td style="color:var(--text-gray);">${user.created_at}</td>
+                                <td>
+                                    <button class="btn-approve" onclick="onayla(${user.id})">💰 Onayla</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) { console.error(e); }
+
+            // 2. Tüm Kilitli Kuponları Çek
+            try {
+                const response = await fetch(`${BACKEND_URL}/admin/all-coupons`);
+                const result = await response.json();
+                const tbodyCoupons = document.getElementById('all-coupons-list');
+                tbodyCoupons.innerHTML = '';
+
+                if (!result.coupons || Object.keys(result.coupons).length === 0) {
+                    tbodyCoupons.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-gray);">Henüz hiçbir oyuncu kuponunu kilitlemedi reis!</td></tr>`;
+                    return;
+                }
+
+                for (let username in result.coupons) {
+                    let couponData = result.coupons[username];
+                    let userTeams = couponData.selections;
+                    let lastUpdate = couponData.last_update; 
+                    let cellsHTML = '';
+                    
+                    for (let gNum = 1; gNum <= 10; gNum++) {
+                        let team = userTeams[gNum] || "SEÇİLMEDİ";
+                        cellsHTML += `<span class="coupon-cell"><strong>G${gNum}:</strong> ${team}</span>`;
+                    }
+                    
+                    tbodyCoupons.innerHTML += `
+                        <tr>
+                            <td style="font-weight:bold; color:var(--neon-purple);">👤 ${username}</td>
+                            <td style="color:var(--neon-yellow); font-weight: 600; font-size: 0.9rem;">⏰ ${lastUpdate}</td>
+                            <td>${cellsHTML}</td>
+                            <td>
+                                <button class="btn-clear-coupon" onclick="kuponuSil('${username}')">KUPONU SİL 🧹</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function onayla(userId) {
+            try {
+                const response = await fetch(`${BACKEND_URL}/admin/approve-user`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                if (response.ok) {
+                    arenaAlert('İŞLEM BAŞARILI', 'Oyuncunun kilidi açıldı.', '✅');
+                    verileriYukle();
+                }
+            } catch (error) { console.error(error); }
+        }
+
+        async function kuponuSil(username) {
+            if (!confirm(`Reis eminsin di mi? [ ${username} ] kullanıcısının yaptığı kupon seçimlerini sileceksin. Hesabı silinmeyecek, sadece kuponu sıfırlanacak.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/clear-coupon/${username}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    arenaAlert('SİLİNDİ 🧹', result.message, '✅');
+                    verileriYukle();
+                } else {
+                    arenaAlert('HATA', result.message, '❌');
+                }
+            } catch (error) {
+                arenaAlert('SİSTEM HATASI', 'Kupon silme isteği gönderilirken backend patladı!', '❌');
+            }
+        }
+
+        window.onload = verileriYukle;
+    </script>
+</body>
+</html>

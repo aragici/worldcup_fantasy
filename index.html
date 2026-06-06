@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 Dünya Kupası Fantezi Ligi</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div id="custom-alert" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <div id="alert-icon" class="custom-alert-icon">🔥</div>
+            <div id="alert-title" class="custom-alert-title">SİSTEM MESAJI</div>
+            <div id="alert-message" class="custom-alert-message">Mesaj içeriği.</div>
+            <button class="custom-alert-btn" onclick="kapatAlert()">ANLAŞILDI REİS</button>
+        </div>
+    </div>
+
+    <header>
+        <div class="container header-arena">
+            <div class="header-left">
+                <img src="css/logo.png" alt="World Cup" class="custom-logo">
+            </div>
+            <div class="header-center">
+                <h1>WORLD CUP ARENA <span class="neon-year">2026</span></h1>
+                <div class="slogan-container">
+                    <p class="sub-slogan">DÜNYA KUPASI TAHMİN LİGİ</p>
+                    <p class="small-acilar">BOZAR MI SANDIN ACILAR.</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="dikey-ay-yildiz">
+                    <div class="crescent-down"></div>
+                    <div class="star-down">★</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="welcome-box">
+            <h2>🔥 OYUNA VE HERKESE KOYMAYA HAZIR MISIN?!</h2>
+            <p>Burada şans değil, futbol aklı ve strateji konuşur. Arkadaşlarını ezip geçmek ve turnuvanın tek hakimi olmak istiyorsan doğru yerdesin. Kuralları oku, hesabını aç ve hemen yerini al!</p>
+        </section>
+
+        <section class="rules-card">
+            <h2>📜 Resmi Turnuva Kanunları</h2>
+            <ul>
+                <li><strong>Giriş Bedeli:</strong> 500 TL. Parayı toplayan admin onay vermeden kupon yapamazsınız.</li>
+                <li><strong>Kadro Yapısı:</strong> 10 farklı gruptan tam olarak 1'er takım seçilecektir. Toplam 10 takım mecburidir.</li>
+                <li><strong>Kontenjan Bariyeri:</strong> Her takımın maksimum 4 kişilik kontenjanı vardır. Bir grupta favori takım 4 kez seçildiyse sistemde otomatik olarak kilitlenir.</li>
+                <li><strong>Puanlama Sistemi:</strong> Galibiyet 3, Beraberlik 1, Mağlubiyet 0. Grup liderliklerine ve eleme turlarına ekstra bonuslar eklenecektir.</li>
+                <li><strong class="danger-text">⚠️ ADİL OYUN VE ŞİKE TEHDİDİ:</strong> Ortaklaşa iş çeviren, ittifak kuran, kahpelik veya şike yaptığı tespit edilen oyuncular diskalifiye edilir. Yatırılan 500 TL iade edilmez.</li>
+            </ul>
+        </section>
+
+        <section class="auth-container">
+            <div class="auth-card">
+                <h3>📌 Yeni Oyuncu Kaydı</h3>
+                <div class="form-group">
+                    <label for="reg-username">Kullanıcı Adı (Ad Soyad):</label>
+                    <input type="text" id="reg-username" placeholder="Örn: Aaron Salem Boupendza">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Şifre:</label>
+                    <input type="password" id="reg-password" placeholder="••••••">
+                </div>
+                <button class="btn btn-purple" onclick="kayitOl()">Kayıt Başvurusunu Gönder</button>
+            </div>
+
+            <div class="auth-card">
+                <h3>🔑 Oyuncu Girişi</h3>
+                <div class="form-group">
+                    <label for="login-username">Kullanıcı Adı:</label>
+                    <input type="text" id="login-username" placeholder="Kullanıcı adınız">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Şifre:</label>
+                    <input type="password" id="login-password" placeholder="••••••">
+                </div>
+                <button class="btn btn-purple" onclick="girisYap()">Sisteme Giriş Yap</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Genç Eyüplüler Dünya Kupası Tahmin Arenası. Kahpelere yer yok.</p>
+    </footer>
+
+    <script>
+        const BACKEND_URL = 'http://127.0.0.1:5000/api';
+
+        function arenaAlert(baslik, mesaj, ikon = '🔥') {
+            document.getElementById('alert-title').innerText = baslik;
+            document.getElementById('alert-message').innerText = mesaj;
+            document.getElementById('alert-icon').innerText = ikon;
+            document.getElementById('custom-alert').classList.add('active');
+        }
+
+        function kapatAlert() {
+            document.getElementById('custom-alert').classList.remove('active');
+        }
+
+        async function kayitOl() {
+            const username = document.getElementById('reg-username').value.trim();
+            const password = document.getElementById('reg-password').value.trim();
+
+            if (!username || !password) {
+                arenaAlert('EKSİK BİLGİ', 'Kullanıcı adı ve şifre alanlarını boş bırakamazsın!', '❌');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    arenaAlert('BAŞVURU ALINDI', result.message, '🎉');
+                    document.getElementById('reg-username').value = '';
+                    document.getElementById('reg-password').value = '';
+                } else {
+                    arenaAlert('BAŞVURU REDDEDİLDİ', result.message, '❌');
+                }
+            } catch (error) {
+                arenaAlert('SİSTEM HATASI', 'Python (Flask) sunucusunu başlattığından emin ol.', '🔌');
+            }
+        }
+
+        async function girisYap() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+
+            if (!username || !password) {
+                arenaAlert('EKSİK BİLGİ', 'Giriş bilgileri boş geçilemez!', '❌');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    arenaAlert('GİRİŞ BAŞARILI', 'Arenaya alınıyorsun, hazırlan...', '🔥');
+                    localStorage.setItem('user_id', result.user_id);
+                    localStorage.setItem('username', username);
+                    
+                    setTimeout(() => {
+                        window.location.href = 'kupon.html';
+                    }, 1500);
+                } else {
+                    arenaAlert('ERİŞİM ENGELLENDİ', result.message, '⚠️');
+                }
+            } catch (error) {
+                arenaAlert('SİSTEM HATASI', 'Python (Flask) sunucusu kapalı olabilir.', '🔌');
+            }
+        }
+    </script>
+</body>
+</html>
