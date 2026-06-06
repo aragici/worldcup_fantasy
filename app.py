@@ -51,6 +51,26 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS draft_orders (
+            user_id INTEGER,
+            group_id INTEGER,
+            pick_order INTEGER,
+            PRIMARY KEY (user_id, group_id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    
+    # 🚨 ANLIK SIRA TAKİP TABLOSU (Şu an hangi grup ve kaçıncı sıra seçiyor?)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS draft_status (
+            id INTEGER PRIMARY KEY,
+            current_group_num INTEGER DEFAULT 1,
+            current_pick_order INTEGER DEFAULT 1,
+            is_started INTEGER DEFAULT 0 -- 0: Kura çekilmedi, 1: Draft Canlı!
+        )
+    ''')
+    cursor.execute("INSERT OR IGNORE INTO draft_status (id, current_group_num, current_pick_order, is_started) VALUES (1, 1, 1, 0)")
     conn.commit()
     conn.close()
 
@@ -409,6 +429,140 @@ def delete_user(username):
         return jsonify({"message": f"Silme esnasında SQL hatası çıktı: {str(e)}"}), 500
     finally:
         conn.close()
+@app.route('/api/admin/pending-users', methods=['GET'])
+def get_pending_users():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, username, is_active FROM users")
+    rows = cursor.fetchall()
+    conn.close()
+    users_list = [{"id": row[0], "username": row[1], "is_active": row[2]} for row in rows]
+    return jsonify({"users": users_list}), 200
+
+@app.route('/api/admin/delete-user/<string:username>', methods=['DELETE'])
+def delete_user(username):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            return jsonify({"message": "Kullanıcı bulunamadı!"}), 404
+        user_id = user_row[0]
+        cursor.execute("DELETE FROM draft_orders WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM coupons WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        return jsonify({"message": f"{username} turnuvadan tamamen silindi! 🧹"}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"message": str(e)}), 500
+    finally:
+        conn.close()
+
+# Oyuncunun ekranına anlık draft durumunu basan servis
+@app.route('/api/draft/current-status', methods=['GET'])
+def get_draft_status():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT current_group_num, current_pick_order, is_started FROM draft_status WHERE id = 1")
+    status_row = cursor.fetchone()
+    
+    if not status_row or status_row[2] == 0:
+        conn.close()
+        return jsonify({"is_started": 0, "message": "Adminin kura çekmesi bekleniyor..."}), 200
+        
+    g_num, p_order, is_started = status_row
+    
+    # Şu an seçme sırası olan oyuncunun ismini bulalım
+    cursor.execute("""
+        SELECT u.username, u.id FROM draft_orders d
+        JOIN users u ON d.user_id = u.id
+        WHERE d.group_id = ? AND d.pick_order = ?
+    """, (g_num, p_order))
+    user_row = cursor.fetchone()
+    
+    current_username = user_row[0] if user_row else "Bilinmiyor"
+    current_user_id = user_row[1] if user_row else 0
+    
+    conn.close()
+    return jsonify({
+        "is_started": 1,
+        "current_group_num": g_num,
+        "current_pick_order": p_order,
+        "current_turn_username": current_username,
+        "current_turn_user_id": current_user_id
+    }), 200
+
+# Sıralı Takım Seçme Servisi
+@app.route('/api/save-coupon', methods=['POST'])
+def save_coupon():
+    data = request.json
+    user_id = int(data.get('user_id'))
+    selections = data.get('selections') # Örn: [{"group_num": 1, "team_name": "Fransa"}]
+    
+    if not selections:
+        return jsonify({"message": "Seçim eksik!"}), 400
+        
+    # Sadece o anki tek bir seçimi işliyoruz (Çünkü adım adım gidiyorlar)
+    sel = selections[0]
+    g_num = int(sel['group_num'])
+    team = sel['team_name']
+    
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    
+    # 1. Draft Canlı mı ve Sıra Gerçekten Bu Adamda mı Kontrol Et
+    cursor.execute("SELECT current_group_num, current_pick_order, is_started FROM draft_status WHERE id = 1")
+    status = cursor.fetchone()
+    
+    if not status or status[2] == 0:
+        conn.close()
+        return jsonify({"message": "Kura henüz çekilmedi, seçim odası kapalı!"}), 400
+        
+    c_group, c_pick, _ = status
+    
+    # Bu grupta bu adamın sırasını doğrula
+    cursor.execute("SELECT pick_order FROM draft_orders WHERE user_id = ? AND group_id = ?", (user_id, g_num))
+    user_order = cursor.fetchone()
+    
+    if not user_order or user_order[0] != c_pick or g_num != c_group:
+        conn.close()
+        return jsonify({"message": "🚨 Dur orada reis! Seçim sırası sende değil, darlık yapma!"}), 400
+        
+    # 2. Kontenjan Kontrolü (MAX 2)
+    cursor.execute("SELECT COUNT(*) FROM coupons WHERE team_name = ?", (team,))
+    team_count = cursor.fetchone()[0]
+    if team_count >= 2:
+        conn.close()
+        return jsonify({"message": f"Bu takım [ {team} ] çoktan 2 kez seçilmiş, kontenjanı dolu!"}), 400
+        
+    # 3. Daha önce bu gruptan takım seçmiş mi kontrolü
+    cursor.execute("SELECT id FROM coupons WHERE user_id = ? AND group_num = ?", (user_id, g_num))
+    if cursor.fetchone():
+        conn.close()
+        return jsonify({"message": "Bu gruptan zaten seçimini yaptın reis!"}), 400
+
+    # 4. Seçimi Kaydet
+    cursor.execute("INSERT INTO coupons (user_id, group_num, team_name) VALUES (?, ?, ?)", (user_id, g_num, team))
+    
+    # 5. 🚀 AKILLI SIRA DEVİR MOTORU: Sırayı bir sonraki oyuncuya geçir
+    if c_pick < 8:
+        # Aynı grupta bir sonraki sıraya geç (1. sıradan 2. sıraya vb.)
+        cursor.execute("UPDATE draft_status SET current_pick_order = ? WHERE id = 1", (c_pick + 1,))
+    else:
+        # Gruptaki 8 kişi de seçtiyse, bir sonraki gruba geç ve sırayı 1'e sıfırla!
+        if c_group < 10:
+            cursor.execute("UPDATE draft_status SET current_group_num = ?, current_pick_order = 1 WHERE id = 1", (c_group + 1,))
+        else:
+            # 10 grup da tamamen bittiyse draftı sonlandır
+            cursor.execute("UPDATE draft_status SET is_started = 2 WHERE id = 1")
+            
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Takım başarıyla kilitlendi, sıra bir sonraki oyuncuya geçti reisim! 🚀"}), 200
+
 @app.route('/')
 def home():
     """Kullanıcı ana Ngrok linkine tıkladığında doğrudan index.html'e fırlatır."""

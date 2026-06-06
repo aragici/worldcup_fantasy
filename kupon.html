@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kuponunu Kilitle - 2026 Dünya Kupası</title>
+    <title>Canlı Seçim Arenası - 2026 Dünya Kupası</title>
     <link rel="stylesheet" href="style.css">    
     <style>
-        /* Canlı Takip Masası İçin Şık Tablo Tasarımı */
         .live-table {
             width: 100%;
             border-collapse: collapse;
@@ -39,13 +38,24 @@
             border: 1px solid #24242b;
             color: var(--text-white);
         }
-        /* Dynamic neon text for draft orders */
         .neon-sira {
             color: var(--neon-yellow);
             font-size: 0.85rem;
             margin-left: 10px;
             font-weight: bold;
             text-shadow: 0 0 5px rgba(255, 255, 0, 0.4);
+        }
+        /* 🚨 CANLI DRAFT ODASI UYARI PANELİ STİLİ */
+        .draft-ticker {
+            background: #1a0033;
+            border: 2px solid var(--neon-purple);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            box-shadow: 0 0 15px rgba(157, 0, 255, 0.2);
         }
     </style>
 </head>
@@ -61,14 +71,15 @@
     </div>
 
     <header>
-        <div class="container header-arena">
+        <div class="container header-arena" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 0;">
             <div class="header-left">
-<img src="logo.png" alt="World Cup" style="max-height: 120px; width: auto; object-fit: contain;">
-            <div class="header-center">
-                <h1>KUPON HAZIRLAMA ARENASI</h1>
+                <img src="logo.png" alt="World Cup" style="max-height: 100px; width: auto; object-fit: contain;">
+            </div>
+            <div class="header-center" style="text-align: center; flex-grow: 1;">
+                <h1>CANLI SEÇİM ARENASI</h1>
                 <div class="slogan-container">
-                    <p class="sub-slogan">KONTENJANI KAPAN KAPAR</p>
-                    <p class="small-acilar">KADRONU SİSTEME KİLİTLE.</p>
+                    <p class="sub-slogan">SIRASI GELEN KADROSUNU KİLİTLER</p>
+                    <p class="small-acilar">KURAL NET: KONTENJANI KAPAN KAPAR.</p>
                 </div>
             </div>
             <div class="header-right">
@@ -81,16 +92,20 @@
     </header>
 
     <main class="container">
-        <div class="welcome-box" style="border-style: solid; padding: 15px; margin-bottom: 20px;">
-            <h2 style="font-size: 1.4rem;">Hoş geldin, <span id="player-name" style="color: var(--neon-purple);">Oyuncu</span>!</h2>
-            <p style="font-size: 0.95rem;">Aşağıdaki 10 gruptan da tam olarak 1'er takım seçerek kuponunu tamamla. Yanında <span style="color: #ff3333; font-weight: bold;">2 / 2 (DOLU)</span> yazan takımlar kilitlenmiştir.</p>
+        
+        <div id="draft-live-panel" class="draft-ticker" style="color: white;">
+            ⏳ Sistem Durumu Yükleniyor...
         </div>
 
-        <form id="tournament-form" onsubmit="kuponuKilitle(event)">
+        <div class="welcome-box" style="border-style: solid; padding: 15px; margin-bottom: 20px;">
+            <h2>Hoş geldin, <span id="player-name" style="color: var(--neon-purple);">Oyuncu</span>!</h2>
+            <p style="font-size: 0.95rem;">Şu an aktif olan gruptaki sıranız geldiğinde yeşil ışık yanacaktır. Her gruptan sadece 1 takım seçip sisteme kilitleyebilirsiniz.</p>
+        </div>
+
+        <form id="tournament-form" onsubmit="tekliTakimSec(event)">
             <div class="groups-grid" id="groups-container">
                 </div>
-
-            <button type="submit" class="btn btn-yellow">Milyonluk Kuponu Sisteme Kilitle</button>
+            <button type="submit" id="btn-submit-team" class="btn btn-yellow" style="display:none; margin-top: 20px;">Seçtiğim Takımı Arenaya Kilitle 🔒</button>
         </form>
 
         <div class="welcome-box" style="border-color: var(--neon-purple); padding: 15px; margin-bottom: 15px; margin-top: 50px;">
@@ -118,7 +133,6 @@
     </footer>
 
     <script>
-        // Bulutta veya lokalde çalışmasına göre backend adresini esnek belirler
         const BACKEND_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
             ? 'http://127.0.0.1:5000/api' 
             : `${window.location.origin}/api`;
@@ -126,7 +140,9 @@
         const userId = localStorage.getItem('user_id');
         const username = localStorage.getItem('username');
 
-        // Giriş güvenliği kontrolü
+        let currentActiveGroupGlobal = 1;
+        let isMyTurnGlobal = false;
+
         if (!userId) {
             alert('Önce giriş yapmalısın reis!');
             window.location.href = 'index.html';
@@ -134,7 +150,6 @@
             document.getElementById('player-name').innerText = username;
         }
 
-        // Sabit Gruplar ve Ülkeler Listesi
         const turnuvaGruplari = {
             1: { isim: "1. Grup (4'lü)", takimlar: ["Fransa", "İspanya", "Arjantin", "İngiltere"] },
             2: { isim: "2. Grup (4'lü)", takimlar: ["Portekiz", "Brezilya", "Hollanda", "Fas"] },
@@ -159,61 +174,81 @@
             document.getElementById('custom-alert').classList.remove('active');
         }
 
-        // 🔄 RADİO BUTONLARA TEKRAR TIKLAMA İLE SEÇİMİ GERİ ALMA MOTORU
-        document.addEventListener('click', function(e) {
-            if (e.target && e.target.type === 'radio' && e.target.name.startsWith('group')) {
-                const radio = e.target;
-                
-                if (radio.dataset.wasChecked === 'true') {
-                    radio.checked = false;
-                    radio.dataset.wasChecked = 'false';
-                    radio.blur(); 
-                } else {
-                    document.querySelectorAll(`input[name="${radio.name}"]`).forEach(r => {
-                        r.dataset.wasChecked = 'false';
-                    });
-                    radio.dataset.wasChecked = 'true';
-                }
-            }
-        });
-
-        // 🎲 Kura sıralamalarını backend'den çekip ilgili grupların yanına basan fonksiyon
+        // 🎲 Kura sıralamalarını basan fonksiyon
         async function secimSiralariniGetir() {
-            if (!userId) return;
             try {
                 const response = await fetch(`${BACKEND_URL}/user/my-orders/${userId}`);
                 if (!response.ok) return;
-
                 const orders = await response.json();
                 orders.forEach(item => {
                     const siraElement = document.getElementById(`sira-grup-${item.group_id}`);
                     if (siraElement) {
-                        if (item.pick_order === 1) {
-                            siraElement.innerText = `(Sıran: 1 - İLKSİN! 🔥)`;
-                        } else if (item.pick_order === 8) {
-                            siraElement.innerText = `(Sıran: 8 - SONDASIN! 💀)`;
-                        } else {
-                            siraElement.innerText = `(Sıran: ${item.pick_order})`;
-                        }
+                        siraElement.innerText = `(Sıran: ${item.pick_order})`;
                     }
                 });
-            } catch (error) {
-                console.error("Kura sıralamaları yüklenirken hata:", error);
-            }
+            } catch (e) {}
         }
 
-        // Sayfa açıldığında anlık kontenjanları çeken, grupları basan ve diğer kuponları listeleyen ana fonksiyon
-        async function gruplariYukle() {
+        // ⏳ SIRA KİMDE TAKİP MOTORU (Her 3 saniyede bir odayı darlıklar)
+        async function draftSiraKontrol() {
             try {
-                // 1. Grupları ve kontenjanları yükle
-                const response = await fetch(`${BACKEND_URL}/teams-status`);
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    arenaAlert('HATA', 'Kontenjanlar çekilemedi!', '❌');
+                const response = await fetch(`${BACKEND_URL}/draft/current-status`);
+                const status = await response.json();
+                const ticker = document.getElementById('draft-live-panel');
+                const submitBtn = document.getElementById('btn-submit-team');
+
+                if (status.is_started === 0) {
+                    ticker.innerHTML = `⚠️ <span style="color:var(--neon-yellow);">KURA BEKLENİYOR:</span> Adminin kura çekmesi bekleniyor, sakin kalın...`;
+                    isMyTurnGlobal = false;
+                    submitBtn.style.display = 'none';
+                    return;
+                } else if (status.is_started === 2) {
+                    ticker.innerHTML = `🎉 <span style="color:#2ec4b6;">DRAFT BİTTİ:</span> Tüm gruplar adilce tamamlandı! Arenada savaş başlasın!`;
+                    isMyTurnGlobal = false;
+                    submitBtn.style.display = 'none';
                     return;
                 }
 
+                currentActiveGroupGlobal = status.current_group_num;
+                
+                // Sıra o anki bakan kullanıcıda mı?
+                if (status.current_turn_user_id == userId) {
+                    ticker.innerHTML = `🔥 <span style="color:#2ec4b6;">SIRA SENDE REİS!</span> ${status.current_group_num}. Grup için takımını seç ve hemen kilitle!`;
+                    isMyTurnGlobal = true;
+                    submitBtn.style.display = 'block';
+                } else {
+                    ticker.innerHTML = `⏳ <span style="color:red;">SIRA BEKLENİYOR:</span> ${status.current_group_num}. Grup için [ <span style="color:var(--neon-yellow);">${status.current_turn_username}</span> ] seçimi bekleniyor...`;
+                    isMyTurnGlobal = false;
+                    submitBtn.style.display = 'none';
+                }
+
+                // Canlı tura göre radyo buton kilitlerini anlık tazele
+                radyoKilitleriniGuncelle();
+
+            } catch (e) { console.error(e); }
+        }
+
+        function radyoKilitleriniGuncelle() {
+            for (let gNum = 1; gNum <= 10; gNum++) {
+                const inputs = document.querySelectorAll(`input[name="group${gNum}"]`);
+                inputs.forEach(input => {
+                    // Eğer sıra bendeyse VE sadece şu anki aktif grupsa butonlar açılsın! Kalan tüm gruplar kilitli!
+                    if (isMyTurnGlobal && gNum == currentActiveGroupGlobal) {
+                        // Eğer takım zaten kontenjandan dolayı dolu değilse kilidini aç
+                        if (!input.dataset.isFullReal) {
+                            input.disabled = false;
+                        }
+                    } else {
+                        input.disabled = true;
+                    }
+                });
+            }
+        }
+
+        async function gruplariYukle() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/teams-status`);
+                const result = await response.json();
                 const counts = result.counts; 
                 const maxQuota = result.max_quota; 
                 const container = document.getElementById('groups-container');
@@ -221,16 +256,12 @@
 
                 for (let gNum in turnuvaGruplari) {
                     const grup = turnuvaGruplari[gNum];
-                    let grupHTML = `
-                        <div class="group-box">
-                            <h3>${grup.isim} <span id="sira-grup-${gNum}" class="neon-sira"></span></h3>
-                    `;
+                    let grupHTML = `<div class="group-box"><h3>${grup.isim} <span id="sira-grup-${gNum}" class="neon-sira"></span></h3>`;
 
                     grup.takimlar.forEach((takim) => {
                         const currentCount = counts[takim] || 0;
-                        
                         let isFull = currentCount >= maxQuota;
-                        let disabledAttr = isFull ? 'disabled' : '';
+                        let disabledAttr = 'disabled'; // Başlangıçta hepsi kilitli duracak, kontrol motoru açacak
                         let fullClass = isFull ? 'full' : '';
                         let quotaText = isFull ? `${currentCount} / ${maxQuota} (DOLU)` : `${currentCount} / ${maxQuota}`;
                         
@@ -240,7 +271,7 @@
                         grupHTML += `
                             <div class="team-row" ${özelStil}>
                                 <label class="container-radio" ${yaziRengi}>
-                                    <input type="radio" name="group${gNum}" value="${takim}" ${disabledAttr}>
+                                    <input type="radio" name="group${gNum}" value="${takim}" ${disabledAttr} data-is-full-real="${isFull ? 'true' : ''}">
                                     ${takim}
                                 </label>
                                 <span class="quota ${fullClass}">${quotaText}</span>
@@ -252,33 +283,26 @@
                     container.innerHTML += grupHTML;
                 }
 
-                // 2. Oyuncunun kendi eski kupon seçimlerini getir
+                // Kullanıcının kendi eski kupon seçimlerini bas
                 const couponResponse = await fetch(`${BACKEND_URL}/user-coupon/${userId}`);
                 const couponResult = await couponResponse.json();
-                
                 if (couponResponse.ok && couponResult.selections.length > 0) {
                     couponResult.selections.forEach(sel => {
                         const radio = document.querySelector(`input[name="group${sel.group_num}"][value="${sel.team_name}"]`);
                         if (radio) {
                             radio.checked = true;
-                            radio.dataset.wasChecked = 'true';
+                            radio.disabled = true; // Zaten seçmiş, dokunamasın
                         }
                     });
                 }
 
-                // 3. Kura sıralamalarını yükle
                 await secimSiralariniGetir();
-
-                // 4. Diğer tüm oyuncuların kuponlarını çek ve alttaki tabloya bas
+                await draftSiraKontrol();
                 await canliKuponlariYukle();
 
-            } catch (error) {
-                console.error(error);
-                arenaAlert('BAĞLANTI HATASI', 'Python sunucusu kapalı olabilir!', '🔌');
-            }
+            } catch (error) { console.error(error); }
         }
 
-        // Diğer oyuncuların kuponlarını çeken yardımcı fonksiyon
         async function canliKuponlariYukle() {
             try {
                 const response = await fetch(`${BACKEND_URL}/live-coupons`);
@@ -287,7 +311,7 @@
                 tbodyLive.innerHTML = '';
 
                 if (!result.coupons || Object.keys(result.coupons).length === 0) {
-                    tbodyLive.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-gray);">Henüz hiçbir oyuncu kupon kaydetmedi reis! İlk sen ol.</td></tr>`;
+                    tbodyLive.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-gray);">Henüz hiçbir seçim kilitlenmedi reis!</td></tr>`;
                     return;
                 }
 
@@ -296,46 +320,34 @@
                     let userTeams = couponData.selections;
                     let lastUpdate = couponData.last_update; 
                     let cellsHTML = '';
-                    
                     for (let gNum = 1; gNum <= 10; gNum++) {
                         let team = userTeams[gNum] || "SEÇİLMEDİ";
                         cellsHTML += `<span class="coupon-cell-mini"><strong>G${gNum}:</strong> ${team}</span>`;
                     }
-                    
                     let nameColor = uName === username ? 'var(--neon-yellow)' : 'var(--neon-purple)';
-
-                    tbodyLive.innerHTML += `
-                        <tr>
-                            <td style="font-weight:bold; color:${nameColor};">👤 ${uName}</td>
-                            <td style="color:var(--text-gray); font-size: 0.85rem;">⏰ ${lastUpdate}</td>
-                            <td>${cellsHTML}</td>
-                        </tr>
-                    `;
+                    tbodyLive.innerHTML += `<tr><td style="font-weight:bold; color:${nameColor};">👤 ${uName}</td><td style="color:var(--text-gray); font-size: 0.85rem;">⏰ ${lastUpdate}</td><td>${cellsHTML}</td></tr>`;
                 }
-            } catch (e) { console.error('Canlı takip yüklenemedi:', e); }
+            } catch (e) {}
         }
 
-        // Form gönderildiğinde kuponu veritabanına kaydeder
-        async function kuponuKilitle(e) {
+        // Sırası gelen adam tek takım seçip kaydettiğinde tetiklenen fonksiyon
+        async function tekliTakimSec(e) {
             e.preventDefault();
-            const selections = [];
-            let secilenGrupSayisi = 0;
-
-            for (let gNum = 1; gNum <= 10; gNum++) {
-                const selectedRadio = document.querySelector(`input[name="group${gNum}"]:checked`);
-                if (selectedRadio) {
-                    selections.push({
-                        group_num: gNum,
-                        team_name: selectedRadio.value
-                    });
-                    secilenGrupSayisi++;
-                }
-            }
-
-            if (selections.length === 0) {
-                arenaAlert('EKSİK SEÇİM', 'En az 1 takım seçmelisin ki sisteme kaydedelim reis! ⚠️');
+            if (!isMyTurnGlobal) {
+                arenaAlert('YASAK HAREKET', 'Sıra sende değil reis, darlık yapma!');
                 return;
             }
+
+            const selectedRadio = document.querySelector(`input[name="group${currentActiveGroupGlobal}"]:checked`);
+            if (!selectedRadio) {
+                arenaAlert('EKSİK SEÇİM', `${currentActiveGroupGlobal}. Grup için bir takım seçmelisin! ⚠️`);
+                return;
+            }
+
+            const selections = [{
+                group_num: currentActiveGroupGlobal,
+                team_name: selectedRadio.value
+            }];
 
             try {
                 const response = await fetch(`${BACKEND_URL}/save-coupon`, {
@@ -344,22 +356,21 @@
                     body: JSON.stringify({ user_id: userId, selections: selections })
                 });
 
-                const result = await response.json();
-
                 if (response.ok) {
-                    if (secilenGrupSayisi === 10) {
-                        arenaAlert('KUPON KİLİTLENDİ', `10 grubun tamamı sisteme başarıyla kilitlendi!\nZaman Damgası: ${result.message.split('Damgası: ')[1] || ''}`, '🎉');
-                    } else {
-                        arenaAlert('KONTENJAN KAPAN DI', `Seçtiğin ${secilenGrupSayisi} takım veritabanına atıldı ve kontenjanları kapıldı reisim! Kalanları sonra tamamlayabilirsin.`, '💾');
-                    }
-                    setTimeout(() => { gruplariYukle(); }, 2000);
+                    arenaAlert('TAKIM KİLİTLENDİ', 'Seçimin başarıyla veritabanına çakıldı reisim, sıra devrediyor... 🚀', '🎉');
+                    setTimeout(() => { gruplariYukle(); }, 1500);
                 } else {
-                    arenaAlert('KİLİTLEME BAŞARISIZ', result.message, '❌');
+                    const res = await response.json();
+                    arenaAlert('BAŞARISIZ', res.message, '❌');
                 }
-            } catch (error) {
-                arenaAlert('SİSTEM HATASI', 'Kupon kaydedilirken motor patladı!', '❌');
-            }
+            } catch (error) { arenaAlert('SİSTEM HATASI', 'Seçim kilitlenirken motor patladı!', '❌'); }
         }
+
+        // Sayfa açıkken her 3 saniyede bir sırayı ve kuponları otomatik yeniler (Discord heyecanı!)
+        setInterval(async () => {
+            await draftSiraKontrol();
+            await canliKuponlariYukle();
+        }, 3000);
 
         window.onload = gruplariYukle;
     </script>
