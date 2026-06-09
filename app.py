@@ -364,6 +364,8 @@ def delete_user(username):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        
+        # 1. Kullanıcının ID'sini bulalım
         cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
         user_row = cursor.fetchone()
         
@@ -372,8 +374,12 @@ def delete_user(username):
             return jsonify({"status": "error", "message": "Kullanıcı veritabanında bulunamadı!"}), 404
             
         user_id = user_row[0]
+        
+        # 2. İlişkili kura ve kupon (user_teams) kayıtlarını temizle
         cursor.execute("DELETE FROM draft_orders WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM user_teams WHERE user_id = ?", (user_id,))
+        
+        # 3. Ana kullanıcı hesabını sil
         cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
         
         conn.commit()
@@ -389,7 +395,7 @@ def draw_kura():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # admin_approved = 1 olan oyuncuları çekiyoruz
+        # 🚨 HATA BURADAYDI: is_active yerine admin_approved=1 olan onaylı oyuncuları çekiyoruz
         cursor.execute("SELECT id FROM users WHERE admin_approved = 1")
         players = [row[0] for row in cursor.fetchall()]
         
