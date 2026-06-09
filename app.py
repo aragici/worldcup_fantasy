@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import random
-import sqlite3
+import psycopg2
 import os
 from datetime import datetime
 
@@ -11,18 +11,19 @@ static_dir = os.path.join(current_dir, 'static') if os.path.exists(os.path.join(
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app, resources={r"/api/*": {"origins": "*"}}, methods=["GET", "POST", "PUT", "DELETE"])
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
-MAX_QUOTA = 2  
+DB_URL = os.environ.get("DATABASE_URL")
+MAX_QUOTA = 2
 
 def init_db():
-    """Gunicorn import etse bile Render'da tabloların kesin oluşmasını sağlayan motor."""
-    conn = sqlite3.connect(DB_PATH)
+    if not DB_URL:
+        return
+        
+    conn = psycopg2.connect(DB_URL)
     cursor = conn.cursor()
     
-    # Oyuncular Tablosu
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
             created_at TEXT NOT NULL,
@@ -30,10 +31,9 @@ def init_db():
         )
     ''')
     
-    # Kuponlar Tablosu
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_teams (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             user_id INTEGER,
             group_num INTEGER,
             team_name TEXT,
@@ -42,7 +42,6 @@ def init_db():
         )
     ''')
     
-    # Kura Sıralaması Tablosu
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS draft_orders (
             user_id INTEGER,
@@ -53,18 +52,17 @@ def init_db():
         )
     ''')
     
-    # Anlık Sıra Takip Tablosu
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS draft_status (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             current_group_num INTEGER DEFAULT 1,
             current_pick_order INTEGER DEFAULT 1,
             is_started INTEGER DEFAULT 0
         )
     ''')
-    cursor.execute("INSERT OR IGNORE INTO draft_status (id, current_group_num, current_pick_order, is_started) VALUES (1, 1, 1, 0)")
     
-    # 🚀 YENİ: Takımların maç istatistiklerini tutan tablo
+    cursor.execute("INSERT INTO draft_status (id, current_group_num, current_pick_order, is_started) VALUES (1, 1, 1, 0) ON CONFLICT (id) DO NOTHING")
+    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS team_stats (
             team_name TEXT PRIMARY KEY,
@@ -78,12 +76,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# 🚀 KRİTİK DÜZELTME: init_db() artık __main__ içinde değil, her türlü ilk yüklemede tetikleniyor!
 init_db()
-
-# --------------------------------------------------------------------------
-# API ENDPOINT'LERİ
-# --------------------------------------------------------------------------
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -97,14 +90,14 @@ def register():
     current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         
-        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
         if cursor.fetchone():
             return jsonify({"status": "error", "message": "Bu isimle zaten bir oyuncu başvurmuş!"}), 400
 
-        cursor.execute("INSERT INTO users (username, password, created_at) VALUES (?, ?, ?)", 
+        cursor.execute("INSERT INTO users (username, password, created_at) VALUES (%s, %s, %s)", 
                        (username, password, current_time))
         
         conn.commit()
@@ -116,7 +109,6 @@ def register():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
@@ -124,10 +116,10 @@ def login():
     password = data.get('password', '').strip()
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         
-        cursor.execute("SELECT id, password, admin_approved FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id, password, admin_approved FROM users WHERE username = %s", (username,))
         user = cursor.fetchone()
         conn.close()
 
@@ -144,11 +136,10 @@ def login():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/teams-status', methods=['GET'])
 def get_teams_status():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         cursor.execute("SELECT team_name, COUNT(user_id) FROM user_teams GROUP BY team_name")
         rows = cursor.fetchall()
@@ -157,7 +148,6 @@ def get_teams_status():
         return jsonify({"status": "success", "counts": status, "max_quota": MAX_QUOTA}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 @app.route('/api/save-coupon', methods=['POST'])
 def save_coupon():
@@ -174,7 +164,7 @@ def save_coupon():
     updated_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         
         cursor.execute("SELECT current_group_num, current_pick_order, is_started FROM draft_status WHERE id = 1")
@@ -190,32 +180,32 @@ def save_coupon():
             conn.close()
             return jsonify({"status": "error", "message": "Seçim odası kapandı!"}), 400
             
-        cursor.execute("SELECT pick_order FROM draft_orders WHERE user_id = ? AND group_id = ?", (user_id, g_num))
+        cursor.execute("SELECT pick_order FROM draft_orders WHERE user_id = %s AND group_id = %s", (user_id, g_num))
         user_order = cursor.fetchone()
         
         if not user_order or user_order[0] != c_pick or g_num != c_group:
             conn.close()
             return jsonify({"status": "error", "message": "Seçim sırası sende değil!"}), 400
             
-        cursor.execute("SELECT COUNT(*) FROM user_teams WHERE team_name = ?", (team,))
+        cursor.execute("SELECT COUNT(*) FROM user_teams WHERE team_name = %s", (team,))
         current_count = cursor.fetchone()[0]
         if current_count >= MAX_QUOTA:
             conn.close()
             return jsonify({"status": "error", "message": f"{team} kontenjanı dolu!"}), 400
             
-        cursor.execute("SELECT id FROM user_teams WHERE user_id = ? AND group_num = ?", (user_id, g_num))
+        cursor.execute("SELECT id FROM user_teams WHERE user_id = %s AND group_num = %s", (user_id, g_num))
         if cursor.fetchone():
             conn.close()
             return jsonify({"status": "error", "message": "Bu gruptan zaten seçim yaptın!"}), 400
 
-        cursor.execute("INSERT INTO user_teams (user_id, group_num, team_name, updated_at) VALUES (?, ?, ?, ?)",
+        cursor.execute("INSERT INTO user_teams (user_id, group_num, team_name, updated_at) VALUES (%s, %s, %s, %s)",
                        (user_id, g_num, team, updated_time))
         
         if c_pick < 8:
-            cursor.execute("UPDATE draft_status SET current_pick_order = ? WHERE id = 1", (c_pick + 1,))
+            cursor.execute("UPDATE draft_status SET current_pick_order = %s WHERE id = 1", (c_pick + 1,))
         else:
             if c_group < 10:
-                cursor.execute("UPDATE draft_status SET current_group_num = ?, current_pick_order = 1 WHERE id = 1", (c_group + 1,))
+                cursor.execute("UPDATE draft_status SET current_group_num = %s, current_pick_order = 1 WHERE id = 1", (c_group + 1,))
             else:
                 cursor.execute("UPDATE draft_status SET is_started = 2 WHERE id = 1")
                 
@@ -225,13 +215,12 @@ def save_coupon():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/user-coupon/<int:user_id>', methods=['GET'])
 def get_user_coupon(user_id):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
-        cursor.execute("SELECT group_num, team_name FROM user_teams WHERE user_id = ?", (user_id,))
+        cursor.execute("SELECT group_num, team_name FROM user_teams WHERE user_id = %s", (user_id,))
         rows = cursor.fetchall()
         conn.close()
         selections = [{"group_num": row[0], "team_name": row[1]} for row in rows]
@@ -239,13 +228,12 @@ def get_user_coupon(user_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/user/my-orders/<int:user_id>', methods=['GET'])
 def get_user_orders(user_id):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
-        cursor.execute("SELECT group_id, pick_order FROM draft_orders WHERE user_id = ?", (user_id,))
+        cursor.execute("SELECT group_id, pick_order FROM draft_orders WHERE user_id = %s", (user_id,))
         rows = cursor.fetchall()
         conn.close()
         orders = [{"group_id": row[0], "pick_order": row[1]} for row in rows]
@@ -253,28 +241,25 @@ def get_user_orders(user_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/admin/approve-user', methods=['POST'])
 def approve_user():
     data = request.json
     user_id = data.get('user_id')
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET admin_approved = 1 WHERE id = ?", (user_id,))
+        cursor.execute("UPDATE users SET admin_approved = 1 WHERE id = %s", (user_id,))
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "message": "Oyuncunun ödemesi onaylandı!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/admin/pending-users', methods=['GET'])
 def get_pending_users():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
-        # 🚀 CİLALAMA: Frontend 'undefined' görmesin diye created_at alanını da listeye ekledik
         cursor.execute("SELECT id, username, created_at, admin_approved FROM users")
         rows = cursor.fetchall()
         conn.close()
@@ -289,11 +274,10 @@ def get_pending_users():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/admin/all-coupons', methods=['GET'])
 def get_all_coupons():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         cursor.execute('''
             SELECT u.username, ut.group_num, ut.team_name, ut.updated_at 
@@ -319,11 +303,10 @@ def get_all_coupons():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/live-coupons', methods=['GET'])
 def get_live_coupons():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         cursor.execute('''
             SELECT u.username, ut.group_num, ut.team_name, ut.updated_at 
@@ -349,13 +332,12 @@ def get_live_coupons():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/clear-coupon/<username>', methods=['DELETE'])
 def clear_coupon(username):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
         user = cursor.fetchone()
         
         if not user:
@@ -363,20 +345,19 @@ def clear_coupon(username):
             return jsonify({"status": "error", "message": "Kullanıcı bulunamadı!"}), 404
             
         user_id = user[0]
-        cursor.execute("DELETE FROM user_teams WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM user_teams WHERE user_id = %s", (user_id,))
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "message": f"{username} kullanıcısının kuponu sıfırlandı! 🧹"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/admin/delete-user/<string:username>', methods=['DELETE'])
 def delete_user(username):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
         user_row = cursor.fetchone()
         
         if not user_row:
@@ -384,9 +365,9 @@ def delete_user(username):
             return jsonify({"status": "error", "message": "Kullanıcı veritabanında bulunamadı!"}), 404
             
         user_id = user_row[0]
-        cursor.execute("DELETE FROM draft_orders WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM user_teams WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        cursor.execute("DELETE FROM draft_orders WHERE user_id = %s", (user_id,))
+        cursor.execute("DELETE FROM user_teams WHERE user_id = %s", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
         
         conn.commit()
         conn.close()
@@ -394,11 +375,10 @@ def delete_user(username):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/api/admin/draw-kura', methods=['POST'])
 def draw_kura():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         
         cursor.execute("SELECT id FROM users WHERE admin_approved = 1")
@@ -406,7 +386,7 @@ def draw_kura():
         
         if len(players) != 8:
             conn.close()
-            return jsonify({"status": "error", "message": f"Kura için tam 8 onaylı oyuncu lazım! (Şu anki onaylı: {len(players)})"}), 400
+            return jsonify({"status": "error", "message": f"Kura için tam 8 onaylı oyuncu lazım! Şu anki onaylı: {len(players)}"}), 400
             
         cursor.execute("DELETE FROM draft_orders")
         
@@ -419,23 +399,20 @@ def draw_kura():
             current_order = players[shift_amount:] + players[:shift_amount]
             
             for index, p_id in enumerate(current_order):
-                cursor.execute("INSERT INTO draft_orders (user_id, group_id, pick_order) VALUES (?, ?, ?)", 
+                cursor.execute("INSERT INTO draft_orders (user_id, group_id, pick_order) VALUES (%s, %s, %s)", 
                                (p_id, g_id, index + 1))
                 
         cursor.execute("UPDATE draft_status SET current_group_num = 1, current_pick_order = 1, is_started = 1 WHERE id = 1")
         conn.commit()
         conn.close()
-        
         return jsonify({"status": "success", "message": "Kaydırmalı Rotasyon Kurası çekildi! 🔄"}), 200
-        
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 @app.route('/api/draft/current-status', methods=['GET'])
 def get_draft_status():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         cursor.execute("SELECT current_group_num, current_pick_order, is_started FROM draft_status WHERE id = 1")
         status_row = cursor.fetchone()
@@ -449,7 +426,7 @@ def get_draft_status():
         cursor.execute("""
             SELECT u.username, u.id FROM draft_orders d
             JOIN users u ON d.user_id = u.id
-            WHERE d.group_id = ? AND d.pick_order = ?
+            WHERE d.group_id = %s AND d.pick_order = %s
         """, (g_num, p_order))
         user_row = cursor.fetchone()
         
@@ -467,8 +444,6 @@ def get_draft_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
-# 🚀 YENİ: ADMİN İÇİN MAÇ İSTATİSTİĞİ İŞLEME ROTASI
 @app.route('/api/admin/update-stat', methods=['POST'])
 def update_team_stat():
     data = request.json
@@ -479,28 +454,28 @@ def update_team_stat():
         return jsonify({"status": "error", "message": "Eksik veri!"}), 400
         
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         
-        cursor.execute("INSERT OR IGNORE INTO team_stats (team_name) VALUES (?)", (team_name,))
+        cursor.execute("INSERT INTO team_stats (team_name) VALUES (%s) ON CONFLICT (team_name) DO NOTHING", (team_name,))
         
         if action == "win":
-            cursor.execute("UPDATE team_stats SET wins = wins + 1 WHERE team_name = ?", (team_name,))
+            cursor.execute("UPDATE team_stats SET wins = wins + 1 WHERE team_name = %s", (team_name,))
             msg = f"{team_name} için +1 Galibiyet işlendi!"
         elif action == "draw":
-            cursor.execute("UPDATE team_stats SET draws = draws + 1 WHERE team_name = ?", (team_name,))
+            cursor.execute("UPDATE team_stats SET draws = draws + 1 WHERE team_name = %s", (team_name,))
             msg = f"{team_name} için +1 Beraberlik işlendi!"
         elif action == "group1":
-            cursor.execute("UPDATE team_stats SET group_rank = 1 WHERE team_name = ?", (team_name,))
+            cursor.execute("UPDATE team_stats SET group_rank = 1 WHERE team_name = %s", (team_name,))
             msg = f"{team_name} Grubu 1. Bitirdi olarak işlendi!"
         elif action == "group2":
-            cursor.execute("UPDATE team_stats SET group_rank = 2 WHERE team_name = ?", (team_name,))
+            cursor.execute("UPDATE team_stats SET group_rank = 2 WHERE team_name = %s", (team_name,))
             msg = f"{team_name} Grubu 2. Bitirdi olarak işlendi!"
         elif action == "group3":
-            cursor.execute("UPDATE team_stats SET group_rank = 3, advanced_third = 1 WHERE team_name = ?", (team_name,))
+            cursor.execute("UPDATE team_stats SET group_rank = 3, advanced_third = 1 WHERE team_name = %s", (team_name,))
             msg = f"{team_name} 3. olup turladı olarak işlendi!"
         elif action == "reset":
-            cursor.execute("UPDATE team_stats SET wins=0, draws=0, group_rank=0, advanced_third=0 WHERE team_name = ?", (team_name,))
+            cursor.execute("UPDATE team_stats SET wins=0, draws=0, group_rank=0, advanced_third=0 WHERE team_name = %s", (team_name,))
             msg = f"{team_name} verileri SIFIRLANDI!"
             
         conn.commit()
@@ -509,12 +484,10 @@ def update_team_stat():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
-# 🚀 YENİ: CANLI LİDERLİK TABLOSUNU HESAPLAYAN ROTA
 @app.route('/api/leaderboard', methods=['GET'])
 def get_leaderboard():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
         
         cursor.execute("SELECT team_name, wins, draws, group_rank, advanced_third FROM team_stats")
@@ -525,7 +498,7 @@ def get_leaderboard():
         
         leaderboard = []
         for u_id, u_name in users:
-            cursor.execute("SELECT team_name FROM user_teams WHERE user_id = ?", (u_id,))
+            cursor.execute("SELECT team_name FROM user_teams WHERE user_id = %s", (u_id,))
             user_teams = [row[0] for row in cursor.fetchall()]
             
             total_pts = 0
@@ -544,7 +517,6 @@ def get_leaderboard():
         return jsonify({"status": "success", "leaderboard": leaderboard}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 @app.route('/')
 def home():
