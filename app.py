@@ -8,15 +8,14 @@ from datetime import datetime
 current_dir = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.join(current_dir, 'static') if os.path.exists(os.path.join(current_dir, 'static')) else os.path.join(current_dir, '..', 'static')
 
-# Flask ve CORS Ayarları
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app, resources={r"/api/*": {"origins": "*"}}, methods=["GET", "POST", "PUT", "DELETE"])
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
-MAX_QUOTA = 2  # Kontenjan Sınırı
+MAX_QUOTA = 2  
 
 def init_db():
-    """Veritabanını ve tabloları sıfırdan en güncel şemayla hazırlar."""
+    """Gunicorn import etse bile Render'da tabloların kesin oluşmasını sağlayan motor."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -68,6 +67,9 @@ def init_db():
     conn.commit()
     conn.close()
 
+# 🚀 KRİTİK DÜZELTME: init_db() artık __main__ içinde değil, her türlü ilk yüklemede tetikleniyor!
+init_db()
+
 # --------------------------------------------------------------------------
 # API ENDPOINT'LERİ
 # --------------------------------------------------------------------------
@@ -98,7 +100,7 @@ def register():
         conn.close()
         return jsonify({
             "status": "success", 
-            "message": f"Kayıt başvurusu alındı!\nTarih: {current_time}\nAdmin 500 TL ödemesini onayladıktan sonra kupon yapabilirsiniz."
+            "message": f"Kayıt başvurusu alındı!\nTarih: {current_time}"
         }), 201
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -124,7 +126,7 @@ def login():
         if user[2] == 0:
             return jsonify({
                 "status": "error", 
-                "message": "Parayı (500 TL) gönderdiyseniz adminin onaylamasını bekleyin! Girişiniz henüz kilitli."
+                "message": "Parayı (500 TL) gönderdiyseniz adminin onaylamasını bekleyin!"
             }), 403
 
         return jsonify({"status": "success", "message": "Giriş başarılı!", "user_id": user[0]}), 200
@@ -140,7 +142,6 @@ def get_teams_status():
         cursor.execute("SELECT team_name, COUNT(user_id) FROM user_teams GROUP BY team_name")
         rows = cursor.fetchall()
         conn.close()
-        
         status = {row[0]: row[1] for row in rows}
         return jsonify({"status": "success", "counts": status, "max_quota": MAX_QUOTA}), 200
     except Exception as e:
@@ -159,52 +160,46 @@ def save_coupon():
     sel = selections[0]
     g_num = int(sel['group_num'])
     team = sel['team_name']
-    
     updated_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # 1. Draft canlı mı ve sıra bu adamda mı kontrol et
         cursor.execute("SELECT current_group_num, current_pick_order, is_started FROM draft_status WHERE id = 1")
         status = cursor.fetchone()
         
         if not status or status[2] == 0:
             conn.close()
-            return jsonify({"status": "error", "message": "Kura henüz çekilmedi, seçim odası kapalı!"}), 400
+            return jsonify({"status": "error", "message": "Kura henüz çekilmedi!"}), 400
             
         c_group, c_pick, is_started = status
         
         if is_started == 2:
             conn.close()
-            return jsonify({"status": "error", "message": "Seçim odası kapandı, tüm kuponlar zaten kilitli!"}), 400
+            return jsonify({"status": "error", "message": "Seçim odası kapandı!"}), 400
             
         cursor.execute("SELECT pick_order FROM draft_orders WHERE user_id = ? AND group_id = ?", (user_id, g_num))
         user_order = cursor.fetchone()
         
         if not user_order or user_order[0] != c_pick or g_num != c_group:
             conn.close()
-            return jsonify({"status": "error", "message": "🚨 Seçim sırası sende değil reis, darlık yapma!"}), 400
+            return jsonify({"status": "error", "message": "Seçim sırası sende değil!"}), 400
             
-        # 2. Kontenjan Kontrolü (MAX 2)
         cursor.execute("SELECT COUNT(*) FROM user_teams WHERE team_name = ?", (team,))
         current_count = cursor.fetchone()[0]
         if current_count >= MAX_QUOTA:
             conn.close()
-            return jsonify({"status": "error", "message": f"Hata: {team} kontenjanı doldu!"}), 400
+            return jsonify({"status": "error", "message": f"{team} kontenjanı dolu!"}), 400
             
-        # 3. Mükerrer seçim kontrolü
         cursor.execute("SELECT id FROM user_teams WHERE user_id = ? AND group_num = ?", (user_id, g_num))
         if cursor.fetchone():
             conn.close()
-            return jsonify({"status": "error", "message": "Bu gruptan zaten seçimini yaptın reis!"}), 400
+            return jsonify({"status": "error", "message": "Bu gruptan zaten seçim yaptın!"}), 400
 
-        # 4. Seçimi Kaydet
         cursor.execute("INSERT INTO user_teams (user_id, group_num, team_name, updated_at) VALUES (?, ?, ?, ?)",
                        (user_id, g_num, team, updated_time))
         
-        # 5. Sıra Devir Motoru
         if c_pick < 8:
             cursor.execute("UPDATE draft_status SET current_pick_order = ? WHERE id = 1", (c_pick + 1,))
         else:
@@ -215,7 +210,7 @@ def save_coupon():
                 
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": f"Takım başarıyla kilitlendi, sıra devrediyor!\nZaman Damgası: {updated_time}"}), 200
+        return jsonify({"status": "success", "message": "Başarıyla kilitlendi!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -258,7 +253,7 @@ def approve_user():
         cursor.execute("UPDATE users SET admin_approved = 1 WHERE id = ?", (user_id,))
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": "Oyuncunun 500 TL ödemesi onaylandı!"}), 200
+        return jsonify({"status": "success", "message": "Oyuncunun ödemesi onaylandı!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -268,21 +263,17 @@ def get_pending_users():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
-        # 🚀 KESİN DÜZELTME: Veritabanındaki 'admin_approved' sütununu çekiyoruz
-        cursor.execute("SELECT id, username, admin_approved FROM users")
+        # 🚀 CİLALAMA: Frontend 'undefined' görmesin diye created_at alanını da listeye ekledik
+        cursor.execute("SELECT id, username, created_at, admin_approved FROM users")
         rows = cursor.fetchall()
         conn.close()
         
-        # Frontend 'is_active' ismini beklediği için admin_approved değerini ona mapliyoruz
-        users_list = []
-        for row in rows:
-            users_list.append({
-                "id": row[0],
-                "username": row[1],
-                "is_active": row[2]  # Veritabanındaki 0 veya 1 değerini frontend'e paslıyoruz
-            })
-            
+        users_list = [{
+            "id": row[0], 
+            "username": row[1], 
+            "created_at": row[2] if row[2] else "Yeni Başvuru", 
+            "is_active": row[3]
+        } for row in rows]
         return jsonify({"status": "success", "users": users_list}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -374,8 +365,6 @@ def delete_user(username):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
-        # 1. Kullanıcının ID'sini bulalım
         cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
         user_row = cursor.fetchone()
         
@@ -384,12 +373,8 @@ def delete_user(username):
             return jsonify({"status": "error", "message": "Kullanıcı veritabanında bulunamadı!"}), 404
             
         user_id = user_row[0]
-        
-        # 2. İlişkili kura ve kupon (user_teams) kayıtlarını temizle
         cursor.execute("DELETE FROM draft_orders WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM user_teams WHERE user_id = ?", (user_id,))
-        
-        # 3. Ana kullanıcı hesabını sil
         cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
         
         conn.commit()
@@ -405,7 +390,6 @@ def draw_kura():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # 🚨 HATA BURADAYDI: is_active yerine admin_approved=1 olan onaylı oyuncuları çekiyoruz
         cursor.execute("SELECT id FROM users WHERE admin_approved = 1")
         players = [row[0] for row in cursor.fetchall()]
         
@@ -490,5 +474,4 @@ if __name__ == '__main__':
     mimetypes.add_type('application/javascript', '.js')
     
     port = int(os.environ.get("PORT", 5000))
-    init_db()
     app.run(debug=False, host='0.0.0.0', port=port)

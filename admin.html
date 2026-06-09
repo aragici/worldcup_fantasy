@@ -7,6 +7,50 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="static/style.css">
     <style>
+        /* 🚀 MOBİL ORTALANMIŞ HEADER DESTEĞİ */
+        .new-header-arena {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            text-align: center;
+        }
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header-title h1 {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+        }
+        .world-cup {
+            font-weight: 900;
+            color: var(--text-white);
+        }
+        .arena {
+            font-size: 2.6rem;
+            font-weight: 900;
+            color: var(--neon-purple);
+            text-shadow: 0 0 10px var(--neon-purple);
+            margin-top: -5px;
+        }
+        .header-cup, .header-flag {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 90px;
+        }
+        .dikey-ay-yildiz {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* TABLO STİLLERİ */
         .admin-table {
             width: 100%;
             border-collapse: collapse;
@@ -38,9 +82,8 @@
             border: none;
             cursor: pointer;
         }
-        .btn-approve:hover {
-            box-shadow: 0 0 10px #2ec4b6;
-        }
+        .btn-approve:hover { box-shadow: 0 0 10px #2ec4b6; }
+        
         .btn-clear-coupon {
             background-color: #ff9f1c;
             color: black;
@@ -51,10 +94,8 @@
             border: none;
             cursor: pointer;
         }
-        .btn-clear-coupon:hover {
-            box-shadow: 0 0 10px #ff9f1c;
-            background-color: #f18701;
-        }
+        .btn-clear-coupon:hover { box-shadow: 0 0 10px #ff9f1c; }
+        
         .btn-danger-user {
             background-color: #e63946;
             color: white;
@@ -65,9 +106,8 @@
             border: none;
             cursor: pointer;
         }
-        .btn-danger-user:hover {
-            box-shadow: 0 0 10px #e63946;
-        }
+        .btn-danger-user:hover { box-shadow: 0 0 10px #e63946; }
+
         .coupon-cell {
             font-size: 0.85rem;
             background-color: #181820;
@@ -94,6 +134,14 @@
             margin-left: 10px;
             border: 1px solid var(--neon-yellow);
         }
+
+        @media (max-width: 768px) {
+            .header-title h1 { font-size: 1.8rem; }
+            .arena { font-size: 2.2rem; }
+            .new-header-arena { gap: 8px; }
+            .header-cup, .header-flag { min-width: 70px; }
+            .header-cup img { max-height: 60px; }
+        }
     </style>
 </head>
 <body>
@@ -108,13 +156,21 @@
     </div>
 
     <header>
-        <div class="container header-arena">
-            <div class="header-left"><span style="font-size: 2rem; color: var(--neon-yellow);">⚡ ADMİN</span></div>
-            <div class="header-center">
-                <h1>TURNUVA KONTROL MERKEZİ</h1>
-                <p class="sub-slogan">KASAYI VE OYUNCULARI YÖNET</p>
+        <div class="container new-header-arena">
+            <div class="header-cup">
+                <img src="logo.png" alt="World Cup" style="max-height: 80px; width: auto; object-fit: contain;">
             </div>
-            <div class="header-right">
+            <div class="header-title">
+                <h1>
+                    <span class="world-cup">WORLD CUP</span>
+                    <span class="arena">ARENA</span>
+                </h1>
+                <div class="slogan-container">
+                    <p class="sub-slogan">TURNUVA KONTROL MERKEZİ</p>
+                    <p class="small-acilar">KASAYI VE OYUNCULARI YÖNET</p>
+                </div>
+            </div>
+            <div class="header-flag">
                 <div class="dikey-ay-yildiz">
                     <div class="crescent-down"></div>
                     <div class="star-down">★</div>
@@ -152,7 +208,7 @@
 
         <div class="welcome-box" style="border-color: #2ec4b6; padding: 15px; margin-bottom: 15px; margin-top: 40px;">
             <h2 style="font-size: 1.4rem; color: #2ec4b6;">👥 Arenadaki Onaylı Oyuncular <span id="active-user-count" class="counter-badge">0</span></h2>
-            <p>Ödemesini onayladığın ve şu an kupon yapma hakkı olan tüm kemik kadro burada durur reis.</p>
+            <p>Ödemesini onayladığın kemik kadro buradadır reis.</p>
         </div>
 
         <table class="admin-table">
@@ -170,7 +226,7 @@
 
         <div class="welcome-box" style="border-color: var(--neon-yellow); padding: 15px; margin-bottom: 15px; margin-top: 40px;">
             <h2 style="font-size: 1.4rem; color: var(--neon-yellow);">🔥 Oyuncu Kupon Takip Masası</h2>
-            <p>Kuponunu kilitleyen onaylı oyuncuların 10 gruptan seçtiği tüm takımlar anlık olarak aşağıya düşer.</p>
+            <p>Kuponunu kilitleyen onaylı oyuncuların seçtiği takımlar anlık düşer.</p>
         </div>
 
         <table class="admin-table">
@@ -198,9 +254,9 @@
             ? 'http://127.0.0.1:5000/api' 
             : `${window.location.origin}/api`;
 
-        function arenaAlert(baslik, mesaj, ikon = '💼') {
+        function arenaAlert(baslik, mensaje, ikon = '💼') {
             document.getElementById('alert-title').innerText = baslik;
-            document.getElementById('alert-message').innerText = mesaj;
+            document.getElementById('alert-message').innerText = mensaje;
             document.getElementById('alert-icon').innerText = ikon;
             document.getElementById('custom-alert').classList.add('active');
         }
@@ -210,74 +266,64 @@
         }
 
         async function verileriYukle() {
-            // 1. Onay Bekleyen ve AKTİF OYUNCULARI Beraber Çek
             try {
                 const response = await fetch(`${BACKEND_URL}/admin/pending-users`);
                 const result = await response.json();
                 
-                // Onay bekleyenler tablosu
                 const tbodyPending = document.getElementById('pending-users-list');
                 tbodyPending.innerHTML = '';
-                if (!result.users || result.users.length === 0) {
-                    tbodyPending.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-gray);">Onay bekleyen yeni bir başvuru yok reis.</td></tr>`;
-                } else {
+                
+                const tbodyActive = document.getElementById('active-users-list');
+                tbodyActive.innerHTML = '';
+
+                let activeCount = 0;
+                let activeUsersHTML = '';
+                let pendingUsersHTML = '';
+
+                if (result.users && result.users.length > 0) {
                     result.users.forEach(user => {
-                        tbodyPending.innerHTML += `
-                            <tr>
-                                <td style="font-weight:bold; color:white;">⚽ ${user.username}</td>
-                                <td style="color:var(--text-gray);">${user.created_at}</td>
-                                <td>
-                                    <button class="btn-approve" onclick="onayla(${user.id})">💰 Onayla</button>
-                                </td>
-                            </tr>
-                        `;
+                        // 🚀 KESİN AYRIM: is_active durumuna göre katı bloklama (Aynı adam iki tabloda çıkamaz)
+                        if (user.is_active === 0) {
+                            pendingUsersHTML += `
+                                <tr>
+                                    <td style="font-weight:bold; color:white;">⚽ ${user.username}</td>
+                                    <td style="color:var(--text-gray);">${user.created_at}</td>
+                                    <td>
+                                        <button class="btn-approve" onclick="onayla(${user.id})">💰 Onayla</button>
+                                    </td>
+                                </tr>
+                            `;
+                        } else if (user.is_active === 1) {
+                            activeCount++;
+                            activeUsersHTML += `
+                                <tr>
+                                    <td style="font-weight:bold; color:#2ec4b6;">👤 ${user.username}</td>
+                                    <td style="color:#2ec4b6; font-weight:bold;">✅ ÖDEME ONAYLI (ARENADA)</td>
+                                    <td>
+                                        <button class="btn-danger-user" onclick="hesabiTamamenSil('${user.username}')">HESABI SİL ❌</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }
                     });
                 }
 
-                // 🚀 YENİ CİLALAMA: Aktif (Onaylı) Oyuncular Tablosu ve Sayacı
-                const tbodyActive = document.getElementById('active-users-list');
-                tbodyActive.innerHTML = '';
-                
-                // Backend'den aktif kullanıcıları çekiyoruz (Mevcut pending-users rotanı genişlettik/kullandık)
-                const activeResponse = await fetch(`${BACKEND_URL}/teams-status`); // Zaten kayıt sayısını da buradan dolaylı doğrularız ama en temizi aktif rota sorgusu
-                
-                // İşlemi kolaylaştırmak için ana listeden onaylanmışları ayıklayan ikinci bir fetch atıyoruz
-                const allPlayersResp = await fetch(`${BACKEND_URL}/admin/all-coupons`);
-                const couponsResult = await allPlayersResp.json();
-                
-                // Onaylı oyuncu takibi için kupon listesindeki tekil isimleri veya direkt aktifleri basıyoruz
-                // Not: Eğer adam onaylı ama henüz kupon yapmadıysa da görmen için backend'e minik bir ekleme yapacağız.
-                // Şimdilik sistemdeki onaylıları listelemek adına kupon takip yapısını buraya entegre ediyoruz.
-                
-                let activeCount = 0;
-                let activeUsersHTML = '';
-                
-                // Kupon tablosundaki onaylı isimleri listeleme motoru
-                if (couponsResult.coupons) {
-                    for (let uName in couponsResult.coupons) {
-                        activeCount++;
-                        activeUsersHTML += `
-                            <tr>
-                                <td style="font-weight:bold; color:#2ec4b6;">👤 ${uName}</td>
-                                <td style="color:#2ec4b6; font-weight:bold;">✅ ÖDEME ONAYLI (ARENADA)</td>
-                                <td>
-                                    <button class="btn-danger-user" onclick="hesabiTamamenSil('${uName}')">HESABI SİL ❌</button>
-                                </td>
-                            </tr>
-                        `;
-                    }
-                }
-                
                 document.getElementById('active-user-count').innerText = activeCount;
-                if(activeCount === 0) {
+
+                if (pendingUsersHTML === '') {
+                    tbodyPending.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-gray);">Onay bekleyen yeni bir başvuru yok reis.</td></tr>`;
+                } else {
+                    tbodyPending.innerHTML = pendingUsersHTML;
+                }
+
+                if (activeCount === 0) {
                     tbodyActive.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-gray);">Henüz onaylanmış hiçbir oyuncu yok reis.</td></tr>`;
                 } else {
                     tbodyActive.innerHTML = activeUsersHTML;
                 }
 
-            } catch (e) { console.error("Oyuncu listeleri yüklenirken hata:", e); }
+            } catch (e) { console.error(e); }
 
-            // 2. Tüm Kilitli Kuponları Çek
             try {
                 const response = await fetch(`${BACKEND_URL}/admin/all-coupons`);
                 const result = await response.json();
@@ -311,7 +357,7 @@
                         </tr>
                     `;
                 }
-            } catch (e) { console.error("Kuponlar yüklenirken hata:", e); }
+            } catch (e) { console.error(e); }
         }
 
         async function onayla(userId) {
@@ -334,43 +380,32 @@
                 const response = await fetch(`${BACKEND_URL}/clear-coupon/${username}`, { method: 'DELETE' });
                 const result = await response.json();
                 if (response.ok) {
-                    arenaAlert('SİLİNDİ 🧹', result.message, '✅');
+                    arenaAlert('SİLİNDİ 🧹', 'Kupon başarıyla sıfırlandı.', '✅');
                     verileriYukle();
-                } else {
-                    arenaAlert('HATA', result.message, '❌');
                 }
             } catch (error) { console.error(error); }
         }
 
-        // 🚀 YENİ MOTOR: HESABI TAMAMEN VERİTABANINDAN SİLME FONKSİYONU
         async function hesabiTamamenSil(username) {
-    if (!confirm(`🚨 DIKKAT REIS! [ ${username} ] isimli oyuncuyu, onun tüm kuponlarını ve hesabını veritabanından TAMAMEN SİLMEK üzeresin. Emin misin?`)) return;
-    
-    try {
-        const response = await fetch(`${BACKEND_URL}/admin/delete-user/${encodeURIComponent(username)}`, {
-            method: 'DELETE'
-        });
-        const result = await response.json();
-        
-        if (response.ok || result.status === "success") {
-            arenaAlert('HESAP İMHA EDİLDİ', 'Kullanıcı başarıyla temizlendi.', '✅');
-            verileriYukle(); // Tabloyu anında yenile
-        } else {
-            arenaAlert('HATA', result.message, '❌');
+            if (!confirm(`🚨 DIKKAT REIS! [ ${username} ] isimli oyuncuyu ve tüm verilerini TAMAMEN SİLMEK üzeresin. Emin misin?`)) return;
+            try {
+                const response = await fetch(`${BACKEND_URL}/admin/delete-user/${encodeURIComponent(username)}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    arenaAlert('HESAP İMHA EDİLDİ', 'Kullanıcı başarıyla temizlendi.', '✅');
+                    verileriYukle();
+                }
+            } catch (error) { console.error(error); }
         }
-    } catch (error) {
-        arenaAlert('SİSTEM HATASI', 'Hesap silinirken bağlantı koptu!', '❌');
-    }
-}
 
-        // 🎲 Kura motorunu tetikleyen fonksiyon
         document.getElementById('btn-kura-cek').addEventListener('click', async function() {
             if (!confirm('8 oyuncu tamamsa kurayı çekiyorsun reis, emin misin?')) return;
             try {
                 const response = await fetch(`${BACKEND_URL}/admin/draw-kura`, { method: 'POST' });
                 const result = await response.json();
                 if (response.ok) {
-                    arenaAlert('KURA ÇEKİLDİ 🎲', result.message, '✅');
+                    arenaAlert('KURA ÇEKİLDİ 🎲', 'Seçim odası başarıyla başlatıldı.', '✅');
                     setTimeout(() => { window.location.reload(); }, 2000);
                 } else {
                     arenaAlert('HATA', result.message, '❌');
