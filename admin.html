@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="static/style.css">
     <style>
-        /* 🚀 MOBİL ORTALANMIŞ HEADER DESTEĞİ */
         .new-header-arena {
             display: flex;
             justify-content: center;
@@ -50,7 +49,6 @@
             align-items: center;
         }
 
-        /* TABLO STİLLERİ */
         .admin-table {
             width: 100%;
             border-collapse: collapse;
@@ -243,6 +241,32 @@
             </tbody>
         </table>
 
+        <div class="welcome-box" style="border-color: #f18701; padding: 15px; margin-bottom: 15px; margin-top: 50px;">
+            <h2 style="font-size: 1.4rem; color: #f18701;">⚙️ Maç Skor ve Puan İşleme Masası</h2>
+            <p>Maçlar bittikçe buradan takımı seçip galibiyetini veya grup durumunu sisteme çakarsın. Liderlik tablosu anında güncellenir.</p>
+            
+            <div style="background: rgba(26, 0, 51, 0.6); padding: 15px; border-radius: 8px; margin-top: 15px;">
+                <select id="team-selector" style="width: 100%; padding: 10px; font-size: 1rem; border-radius: 4px; background: #1a0033; color: white; border: 1px solid var(--neon-purple); margin-bottom: 15px;">
+                    <option value="">-- İstediğin Takımı Seç --</option>
+                    <option value="Türkiye">Türkiye</option><option value="Fransa">Fransa</option><option value="İspanya">İspanya</option><option value="Arjantin">Arjantin</option><option value="İngiltere">İngiltere</option><option value="Portekiz">Portekiz</option><option value="Brezilya">Brezilya</option><option value="Hollanda">Hollanda</option><option value="Fas">Fas</option><option value="Belçika">Belçika</option><option value="Almanya">Almanya</option><option value="Hırvatistan">Hırvatistan</option><option value="Kolombiya">Kolombiya</option><option value="Senegal">Senegal</option><option value="Meksika">Meksika</option><option value="ABD">ABD</option><option value="Uruguay">Uruguay</option><option value="Japonya">Japonya</option><option value="İsviçre">İsviçre</option><option value="İran">İran</option><option value="Ekvador">Ekvador</option><option value="Avusturya">Avusturya</option><option value="Kore Cumhuriyeti">Kore Cumhuriyeti</option><option value="Avustralya">Avustralya</option><option value="Mısır">Mısır</option><option value="Cezayir">Cezayir</option><option value="Kanada">Kanada</option><option value="Norveç">Norveç</option><option value="Panama">Panama</option><option value="Fildişi Sahili">Fildişi Sahili</option><option value="İsveç">İsveç</option><option value="Paraguay">Paraguay</option><option value="Çekya">Çekya</option><option value="İskoçya">İskoçya</option><option value="Tunus">Tunus</option><option value="Kongo Dem. Cum.">Kongo Dem. Cum.</option><option value="Özbekistan">Özbekistan</option><option value="Katar">Katar</option><option value="Irak">Irak</option><option value="Güney Africa">Güney Africa</option><option value="Suudi Arabistan">Suudi Arabistan</option><option value="Ürdün">Ürdün</option><option value="Bosna-Hersek">Bosna-Hersek</option><option value="Yeşil Burun Ada.">Yeşil Burun Ada.</option><option value="Gana">Gana</option><option value="Curaçao">Curaçao</option><option value="Haiti">Haiti</option><option value="Yeni Zelanda">Yeni Zelanda</option>
+                </select>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="btn" style="background: #2ec4b6; color: black; font-weight: bold; flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer;" onclick="skorIsle('win')">+1 GALİBİYET (3 Puan)</button>
+                    <button class="btn" style="background: #ff9f1c; color: black; font-weight: bold; flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer;" onclick="skorIsle('draw')">+1 BERABERLİK (1 Puan)</button>
+                </div>
+                
+                <h4 style="color: var(--neon-yellow); margin-bottom: 10px;">Grup Aşaması Bittiğinde:</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="btn" style="background: var(--neon-purple); color: white; font-weight: bold; flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer;" onclick="skorIsle('group1')">1. OLARAK BİTİRDİ (+3 Puan)</button>
+                    <button class="btn" style="background: var(--neon-purple); color: white; font-weight: bold; flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer;" onclick="skorIsle('group2')">2. OLARAK BİTİRDİ (+2 Puan)</button>
+                    <button class="btn" style="background: var(--neon-purple); color: white; font-weight: bold; flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer;" onclick="skorIsle('group3')">3. OLUP ÇIKTI (+1 Puan)</button>
+                </div>
+                
+                <button class="btn-danger-user" style="width: 100%; padding: 10px;" onclick="skorIsle('reset')">VERİLERİ SIFIRLA (Hata yaparsan)</button>
+            </div>
+        </div>
+
     </main>
 
     <footer>
@@ -282,7 +306,6 @@
 
                 if (result.users && result.users.length > 0) {
                     result.users.forEach(user => {
-                        // 🚀 KESİN AYRIM: is_active durumuna göre katı bloklama (Aynı adam iki tabloda çıkamaz)
                         if (user.is_active === 0) {
                             pendingUsersHTML += `
                                 <tr>
@@ -412,6 +435,29 @@
                 }
             } catch (error) { console.error(error); }
         });    
+
+        async function skorIsle(action) {
+            const takim = document.getElementById('team-selector').value;
+            if (!takim) {
+                arenaAlert('EKSİK İŞLEM', 'Önce yukarıdan takım seçmelisin reis!', '⚠️');
+                return;
+            }
+            if (!confirm(`[ ${takim} ] takımına işlem yapacaksın. Emin misin?`)) return;
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/admin/update-stat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_name: takim, action: action })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    arenaAlert('BAŞARILI', result.message, '✅');
+                } else {
+                    arenaAlert('HATA', result.message, '❌');
+                }
+            } catch (error) { console.error(error); }
+        }
 
         window.onload = verileriYukle;
     </script>

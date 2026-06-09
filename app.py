@@ -64,6 +64,17 @@ def init_db():
     ''')
     cursor.execute("INSERT OR IGNORE INTO draft_status (id, current_group_num, current_pick_order, is_started) VALUES (1, 1, 1, 0)")
     
+    # 🚀 YENİ: Takımların maç istatistiklerini tutan tablo
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS team_stats (
+            team_name TEXT PRIMARY KEY,
+            wins INTEGER DEFAULT 0,
+            draws INTEGER DEFAULT 0,
+            group_rank INTEGER DEFAULT 0,
+            advanced_third INTEGER DEFAULT 0
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -460,6 +471,84 @@ def get_draft_status():
             "current_turn_username": current_username,
             "current_turn_user_id": current_user_id
         }), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# 🚀 YENİ: ADMİN İÇİN MAÇ İSTATİSTİĞİ İŞLEME ROTASI
+@app.route('/api/admin/update-stat', methods=['POST'])
+def update_team_stat():
+    data = request.json
+    team_name = data.get('team_name')
+    action = data.get('action')
+    
+    if not team_name or not action:
+        return jsonify({"status": "error", "message": "Eksik veri!"}), 400
+        
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("INSERT OR IGNORE INTO team_stats (team_name) VALUES (?)", (team_name,))
+        
+        if action == "win":
+            cursor.execute("UPDATE team_stats SET wins = wins + 1 WHERE team_name = ?", (team_name,))
+            msg = f"{team_name} için +1 Galibiyet işlendi!"
+        elif action == "draw":
+            cursor.execute("UPDATE team_stats SET draws = draws + 1 WHERE team_name = ?", (team_name,))
+            msg = f"{team_name} için +1 Beraberlik işlendi!"
+        elif action == "group1":
+            cursor.execute("UPDATE team_stats SET group_rank = 1 WHERE team_name = ?", (team_name,))
+            msg = f"{team_name} Grubu 1. Bitirdi olarak işlendi!"
+        elif action == "group2":
+            cursor.execute("UPDATE team_stats SET group_rank = 2 WHERE team_name = ?", (team_name,))
+            msg = f"{team_name} Grubu 2. Bitirdi olarak işlendi!"
+        elif action == "group3":
+            cursor.execute("UPDATE team_stats SET group_rank = 3, advanced_third = 1 WHERE team_name = ?", (team_name,))
+            msg = f"{team_name} 3. olup turladı olarak işlendi!"
+        elif action == "reset":
+            cursor.execute("UPDATE team_stats SET wins=0, draws=0, group_rank=0, advanced_third=0 WHERE team_name = ?", (team_name,))
+            msg = f"{team_name} verileri SIFIRLANDI!"
+            
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": msg}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# 🚀 YENİ: CANLI LİDERLİK TABLOSUNU HESAPLAYAN ROTA
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT team_name, wins, draws, group_rank, advanced_third FROM team_stats")
+        stats = {r[0]: {"w": r[1], "d": r[2], "rank": r[3], "adv": r[4]} for r in cursor.fetchall()}
+        
+        cursor.execute("SELECT id, username FROM users WHERE admin_approved = 1")
+        users = cursor.fetchall()
+        
+        leaderboard = []
+        for u_id, u_name in users:
+            cursor.execute("SELECT team_name FROM user_teams WHERE user_id = ?", (u_id,))
+            user_teams = [row[0] for row in cursor.fetchall()]
+            
+            total_pts = 0
+            for team in user_teams:
+                if team in stats:
+                    ts = stats[team]
+                    total_pts += (ts["w"] * 3) + (ts["d"] * 1)
+                    if ts["rank"] == 1: total_pts += 3
+                    elif ts["rank"] == 2: total_pts += 2
+                    elif ts["rank"] == 3 and ts["adv"] == 1: total_pts += 1
+                        
+            leaderboard.append({"username": u_name, "points": total_pts, "team_count": len(user_teams)})
+            
+        conn.close()
+        leaderboard.sort(key=lambda x: x["points"], reverse=True)
+        return jsonify({"status": "success", "leaderboard": leaderboard}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
