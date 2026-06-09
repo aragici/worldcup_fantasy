@@ -344,24 +344,24 @@
 
         // 🚀 YENİ MOTOR: HESABI TAMAMEN VERİTABANINDAN SİLME FONKSİYONU
         async function hesabiTamamenSil(username) {
-            if (!confirm(`🚨 DIKKAT REIS! [ ${username} ] isimli oyuncuyu, onun tüm kuponlarını ve hesabını veritabanından TAMAMEN SİLMEK üzeresin. Bu işlem geri alınamaz. Emin misin?`)) return;
-            
-            try {
-                const response = await fetch(`${BACKEND_URL}/admin/delete-user/${username}`, {
-                    method: 'DELETE'
-                });
-                const result = await response.json();
-                
-                if (response.ok) {
-                    arenaAlert('HESAP İMHA EDİLDİ', result.message, '✅');
-                    verileriYukle();
-                } else {
-                    arenaAlert('HATA', result.message, '❌');
-                }
-            } catch (error) {
-                arenaAlert('SİSTEM HATASI', 'Hesap silinirken backend patladı!', '❌');
-            }
+    if (!confirm(`🚨 DIKKAT REIS! [ ${username} ] isimli oyuncuyu, onun tüm kuponlarını ve hesabını veritabanından TAMAMEN SİLMEK üzeresin. Emin misin?`)) return;
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/admin/delete-user/${encodeURIComponent(username)}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        
+        if (response.ok || result.status === "success") {
+            arenaAlert('HESAP İMHA EDİLDİ', 'Kullanıcı başarıyla temizlendi.', '✅');
+            verileriYukle(); // Tabloyu anında yenile
+        } else {
+            arenaAlert('HATA', result.message, '❌');
         }
+    } catch (error) {
+        arenaAlert('SİSTEM HATASI', 'Hesap silinirken bağlantı koptu!', '❌');
+    }
+}
 
         // 🎲 Kura motorunu tetikleyen fonksiyon
         document.getElementById('btn-kura-cek').addEventListener('click', async function() {

@@ -268,12 +268,22 @@ def get_pending_users():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        
+        # 🚀 KESİN DÜZELTME: Veritabanındaki 'admin_approved' sütununu çekiyoruz
         cursor.execute("SELECT id, username, admin_approved FROM users")
         rows = cursor.fetchall()
         conn.close()
-        # Admin panelinin düzgün ayrım yapması için veritabanındaki adı 'admin_approved'ü 'is_active'e mapliyoruz
-        users_list = [{"id": row[0], "username": row[1], "is_active": row[2]} for row in rows]
-        return jsonify({"users": users_list}), 200
+        
+        # Frontend 'is_active' ismini beklediği için admin_approved değerini ona mapliyoruz
+        users_list = []
+        for row in rows:
+            users_list.append({
+                "id": row[0],
+                "username": row[1],
+                "is_active": row[2]  # Veritabanındaki 0 veya 1 değerini frontend'e paslıyoruz
+            })
+            
+        return jsonify({"status": "success", "users": users_list}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
