@@ -406,35 +406,28 @@ def draw_kura():
         
         if len(players) != 8:
             conn.close()
-            return jsonify({"status": "error", "message": f"Kura için tam 8 onaylı oyuncu lazım! Şu anki onaylı: {len(players)}"}), 400
+            return jsonify({"status": "error", "message": f"Kura için tam 8 onaylı oyuncu lazım! (Şu anki onaylı: {len(players)})"}), 400
             
         cursor.execute("DELETE FROM draft_orders")
         
         TOTAL_GROUPS = 10 
-        past_top_pickers = set()
+        
+        random.shuffle(players)
         
         for g_id in range(1, TOTAL_GROUPS + 1):
-            pool = [p for p in players if p not in past_top_pickers]
-            punished = [p for p in players if p in past_top_pickers]
+            shift_amount = (g_id - 1) % 8
+            current_order = players[shift_amount:] + players[:shift_amount]
             
-            random.shuffle(pool)
-            random.shuffle(punished)
-            current_group_order = pool + punished
-            
-            for index, p_id in enumerate(current_group_order):
+            for index, p_id in enumerate(current_order):
                 cursor.execute("INSERT INTO draft_orders (user_id, group_id, pick_order) VALUES (?, ?, ?)", 
                                (p_id, g_id, index + 1))
-                
-            past_top_pickers.add(current_group_order[0])
-            past_top_pickers.add(current_group_order[1])
-            
-            if len(past_top_pickers) >= 8:
-                past_top_pickers.clear()
                 
         cursor.execute("UPDATE draft_status SET current_group_num = 1, current_pick_order = 1, is_started = 1 WHERE id = 1")
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": "Garantili Adalet kurası başarıyla çekildi! Canlı seçim odası aktif. 🎲"}), 200
+        
+        return jsonify({"status": "success", "message": "Kaydırmalı Rotasyon Kurası çekildi! 🔄"}), 200
+        
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
