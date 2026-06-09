@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canlı Puan Durumu - World Cup Arena</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="static/style.css">
+    <style>
+        /* 🚀 MOBİL ORTALANMIŞ HEADER DESTEĞİ (AYNI JİLET DÜZEN) */
+        .new-header-arena {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            text-align: center;
+        }
+        .header-title { display: flex; flex-direction: column; align-items: center; }
+        .header-title h1 {
+            display: flex; flex-direction: column; align-items: center;
+            font-size: 2.2rem; margin-bottom: 5px;
+        }
+        .world-cup { font-weight: 900; color: var(--text-white); }
+        .arena {
+            font-size: 2.6rem; font-weight: 900; color: var(--neon-purple);
+            text-shadow: 0 0 10px var(--neon-purple); margin-top: -5px;
+        }
+        .header-cup, .header-flag { display: flex; align-items: center; justify-content: center; min-width: 90px; }
+        .dikey-ay-yildiz { display: flex; flex-direction: column; align-items: center; }
+
+        /* 🏆 PUAN DURUMU TABLOSU ÖZEL STİLLERİ */
+        .standings-container {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--neon-purple);
+            overflow: hidden;
+            margin-top: 20px;
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.2);
+        }
+        .standings-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        .standings-table th {
+            background-color: #1a0033;
+            color: var(--neon-yellow);
+            padding: 15px;
+            font-size: 1rem;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--neon-purple);
+        }
+        .standings-table td {
+            padding: 15px;
+            border-bottom: 1px solid #24242b;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+        }
+        .standings-table tr:hover { background-color: rgba(255, 255, 255, 0.05); }
+        
+        /* 🥇 PODYUM EFEKTLERİ */
+        .rank-1 { background: rgba(255, 215, 0, 0.1) !important; border-left: 5px solid #FFD700; color: #FFD700 !important; }
+        .rank-2 { background: rgba(192, 192, 192, 0.1) !important; border-left: 5px solid #C0C0C0; color: #C0C0C0 !important; }
+        .rank-3 { background: rgba(205, 127, 50, 0.1) !important; border-left: 5px solid #CD7F32; color: #CD7F32 !important; }
+        
+        .points-badge {
+            background: var(--neon-purple);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            color: white;
+            text-shadow: 0 0 5px white;
+            border: 1px solid var(--neon-yellow);
+        }
+
+        .back-btn {
+            display: block;
+            width: 100%;
+            text-align: center;
+            background: #24242b;
+            color: white;
+            padding: 12px;
+            margin-top: 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            border: 1px solid #444;
+            transition: 0.3s;
+        }
+        .back-btn:hover { background: var(--neon-purple); border-color: var(--neon-yellow); }
+
+        @media (max-width: 768px) {
+            .header-title h1 { font-size: 1.8rem; }
+            .arena { font-size: 2.2rem; }
+            .new-header-arena { gap: 8px; }
+            .header-cup, .header-flag { min-width: 70px; }
+            .header-cup img { max-height: 60px; }
+            .standings-table th, .standings-table td { padding: 10px; font-size: 0.9rem; }
+            .points-badge { font-size: 1rem; padding: 4px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container new-header-arena">
+            <div class="header-cup">
+                <img src="logo.png" alt="World Cup" style="max-height: 80px; width: auto; object-fit: contain;">
+            </div>
+            <div class="header-title">
+                <h1>
+                    <span class="world-cup">WORLD CUP</span>
+                    <span class="arena">ARENA</span>
+                </h1>
+                <div class="slogan-container">
+                    <p class="sub-slogan">CANLI PUAN DURUMU</p>
+                    <p class="small-acilar">LİDERLİK TABLOSU</p>
+                </div>
+            </div>
+            <div class="header-flag">
+                <div class="dikey-ay-yildiz">
+                    <div class="crescent-down"></div>
+                    <div class="star-down">★</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div style="text-align: center; margin-bottom: 20px;">
+    <a href="puan.html" class="btn" style="background: var(--neon-purple); color: white; text-decoration: none; display: inline-block; padding: 10px 20px; font-weight: bold; border: 1px solid var(--neon-yellow); box-shadow: 0 0 10px var(--neon-purple);">
+        🏆 CANLI PUAN DURUMUNU GÖR 🏆
+    </a>
+</div>
+        <div class="welcome-box" style="text-align: center; border-color: var(--neon-yellow); padding: 15px;">
+            <h2 style="font-size: 1.5rem; color: var(--neon-yellow);">🔥 ŞAMPİYONLUK YARIŞI</h2>
+            <p style="color: #aaa; font-size: 0.9rem;">Turnuva boyunca alınan her galibiyet ve tur atlama puanları anında buraya yansır.</p>
+        </div>
+
+        <div class="standings-container">
+            <table class="standings-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">Sıra</th>
+                        <th style="text-align: left; width: 45%;">Menajer</th>
+                        <th style="width: 35%;">Toplam Puan</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr><td colspan="3" style="color: gray;">Veriler arenadan çekiliyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <a href="kupon.html" class="back-btn">⬅ KUPON VE SEÇİM EKRANINA DÖN</a>
+
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Genç Eyüplüler Dünya Kupası Tahmin Arenası. Kahpelere yer yok.</p>
+    </footer>
+
+    <script>
+        const BACKEND_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
+            ? 'http://127.0.0.1:5000/api' 
+            : `${window.location.origin}/api`;
+
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/leaderboard`);
+                const result = await response.json();
+                
+                const tbody = document.getElementById('leaderboard-body');
+                tbody.innerHTML = '';
+
+                if (result.status === 'success' && result.leaderboard.length > 0) {
+                    result.leaderboard.forEach((player, index) => {
+                        const rank = index + 1;
+                        let rowClass = '';
+                        let rankDisplay = rank;
+
+                        // İlk 3'e özel podyum sınıfı ve emoji
+                        if (rank === 1) { rowClass = 'rank-1'; rankDisplay = '🥇 1.'; }
+                        else if (rank === 2) { rowClass = 'rank-2'; rankDisplay = '🥈 2.'; }
+                        else if (rank === 3) { rowClass = 'rank-3'; rankDisplay = '🥉 3.'; }
+                        else { rankDisplay = `${rank}.`; }
+
+                        const tr = document.createElement('tr');
+                        tr.className = rowClass;
+                        tr.innerHTML = `
+                            <td style="font-weight: 900;">${rankDisplay}</td>
+                            <td style="text-align: left; font-size: 1.2rem;">👤 ${player.username}</td>
+                            <td><span class="points-badge">${player.points} Pts</span></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="3" style="color: gray;">Henüz liderlik tablosu oluşmadı.</td></tr>`;
+                }
+            } catch (error) {
+                console.error("Liderlik tablosu çekilemedi:", error);
+                document.getElementById('leaderboard-body').innerHTML = `<tr><td colspan="3" style="color: red;">Bağlantı hatası! Sunucuya ulaşılamıyor.</td></tr>`;
+            }
+        }
+
+        // Sayfa açıldığında tabloyu doldur
+        window.onload = loadLeaderboard;
+    </script>
+</body>
+</html>
